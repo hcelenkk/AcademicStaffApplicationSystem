@@ -1,42 +1,51 @@
-import React, { useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
 import { AppBar, Toolbar, Typography, Button } from '@mui/material';
-import logo from '../assets/Kouyenilogo.png'; // Doğru dosya adını kontrol et
 
 const Header = () => {
-  const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+
+  useEffect(() => {
+    // Token değişimini izlemek için bir event listener ekle
+    const handleStorageChange = () => {
+      const token = localStorage.getItem('token');
+      setIsAuthenticated(!!token);
+    };
+
+    // Storage event'ini dinle (farklı sekmelerde token değişimini algılar)
+    window.addEventListener('storage', handleStorageChange);
+
+    // İlk render'da token kontrolü
+    handleStorageChange();
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   const handleLogout = () => {
-    logout();
+    // Token'ı temizle
+    localStorage.removeItem('token');
+    setIsAuthenticated(false);
+    // Login sayfasına yönlendir
     navigate('/login');
   };
 
+  // Eğer kullanıcı oturum açmamışsa, Header'ı gösterme
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
-    <AppBar position="static" sx={{ backgroundColor: '#006633' }}>
+    <AppBar position="static">
       <Toolbar>
-        <img
-          src={logo}
-          alt="Kocaeli Üniversitesi Logo"
-          style={{ height: '40px', marginRight: '10px' }}
-        />
-        <Typography
-          variant="h6"
-          component="div"
-          sx={{ flexGrow: 1, color: '#1A2526', fontWeight: 'bold' }}
-        >
+        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           Akademik Personel Başvuru Sistemi
         </Typography>
-        {user && (
-          <Button
-            color="inherit"
-            onClick={handleLogout}
-            sx={{ backgroundColor: '#006633', color: '#1A2526', '&:hover': { backgroundColor: '#004d29' } }}
-          >
-            Çıkış Yap
-          </Button>
-        )}
+        <Button color="inherit" onClick={handleLogout}>
+          Çıkış Yap
+        </Button>
       </Toolbar>
     </AppBar>
   );

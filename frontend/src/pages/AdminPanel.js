@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Yönlendirme için
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import {
   Container,
@@ -12,21 +12,33 @@ import {
   ListItemText,
   CircularProgress,
   IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { Edit, Delete } from '@mui/icons-material';
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { tr } from 'date-fns/locale'; // Türkçe dil desteği
 import Header from '../components/Header';
+
+
+
+// Sabit kategoriler
+const kategoriler = ['Dr. Öğr. Üyesi', 'Doçent', 'Profesör'];
 
 const AdminPanel = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [formData, setFormData] = useState({
     kategori: '',
-    baslangic_tarih: '',
-    bitis_tarih: '',
+    baslangic_tarih: null, // Date objesi olarak tutacağız
+    bitis_tarih: null, // Date objesi olarak tutacağız
     aciklama: '',
   });
   const [editFormData, setEditFormData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate(); // Yönlendirme için
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchAnnouncements = async () => {
@@ -44,18 +56,34 @@ const AdminPanel = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleDateChange = (name, date) => {
+    setFormData({ ...formData, [name]: date });
+  };
+
   const handleEditChange = (e) => {
     setEditFormData({ ...editFormData, [e.target.name]: e.target.value });
+  };
+
+  const handleEditDateChange = (name, date) => {
+    setEditFormData({ ...editFormData, [name]: date });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await api.post('/announcements', formData);
+      // Tarihleri ISO formatına çevir
+      const formattedData = {
+        ...formData,
+        baslangic_tarih: formData.baslangic_tarih
+          ? formData.baslangic_tarih.toISOString()
+          : '',
+        bitis_tarih: formData.bitis_tarih ? formData.bitis_tarih.toISOString() : '',
+      };
+      const response = await api.post('/announcements', formattedData);
       setAnnouncements((prev) => [...prev, response.data]);
       alert('İlan başarıyla eklendi!');
-      setFormData({ kategori: '', baslangic_tarih: '', bitis_tarih: '', aciklama: '' });
+      setFormData({ kategori: '', baslangic_tarih: null, bitis_tarih: null, aciklama: '' });
     } catch (err) {
       const errorMessage =
         err.response?.data?.message || 'İlan eklenemedi. Lütfen tekrar deneyin.';
@@ -84,13 +112,25 @@ const AdminPanel = () => {
   };
 
   const handleEdit = (ann) => {
-    setEditFormData({ ...ann });
+    setEditFormData({
+      ...ann,
+      baslangic_tarih: new Date(ann.baslangic_tarih), // String'den Date'e çevir
+      bitis_tarih: new Date(ann.bitis_tarih), // String'den Date'e çevir
+    });
   };
 
   const handleUpdate = async (ilan_id) => {
     setLoading(true);
     try {
-      const response = await api.put(`/announcements/${ilan_id}`, editFormData);
+      // Tarihleri ISO formatına çevir
+      const formattedEditData = {
+        ...editFormData,
+        baslangic_tarih: editFormData.baslangic_tarih
+          ? editFormData.baslangic_tarih.toISOString()
+          : '',
+        bitis_tarih: editFormData.bitis_tarih ? editFormData.bitis_tarih.toISOString() : '',
+      };
+      const response = await api.put(`/announcements/${ilan_id}`, formattedEditData);
       setAnnouncements((prev) =>
         prev.map((ann) => (ann.ilan_id === ilan_id ? response.data : ann))
       );
@@ -126,7 +166,6 @@ const AdminPanel = () => {
             Yeni ilan ekleyin veya mevcut ilanları yönetin.
           </Typography>
 
-          {/* Başvuru Yönetimi Butonu */}
           <Button
             variant="contained"
             onClick={() => navigate('/admin/applications')}
@@ -135,59 +174,65 @@ const AdminPanel = () => {
             Başvuru Yönetimi
           </Button>
 
-          {/* İlan Ekleme Formu */}
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3, mb: 4 }}>
-            <TextField
-              label="Kategori"
-              name="kategori"
-              value={formData.kategori}
-              onChange={handleChange}
-              fullWidth
-              required
-              margin="normal"
-            />
-            <TextField
-              label="Başlangıç Tarihi (YYYY-MM-DD)"
-              name="baslangic_tarih"
-              value={formData.baslangic_tarih}
-              onChange={handleChange}
-              fullWidth
-              required
-              margin="normal"
-            />
-            <TextField
-              label="Bitiş Tarihi (YYYY-MM-DD)"
-              name="bitis_tarih"
-              value={formData.bitis_tarih}
-              onChange={handleChange}
-              fullWidth
-              required
-              margin="normal"
-            />
-            <TextField
-              label="Açıklama"
-              name="aciklama"
-              value={formData.aciklama}
-              onChange={handleChange}
-              fullWidth
-              required
-              multiline
-              rows={3}
-              margin="normal"
-            />
-            <Button
-              type="submit"
-              variant="contained"
-              fullWidth
-              disabled={loading}
-              sx={{ mt: 2 }}
-              startIcon={loading && <CircularProgress size={20} color="inherit" />}
-            >
-              {loading ? 'Ekleniyor...' : 'İlan Ekle'}
-            </Button>
-          </Box>
+          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={tr}>
+            <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3, mb: 4 }}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Kategori</InputLabel>
+                <Select
+                  name="kategori"
+                  value={formData.kategori}
+                  onChange={handleChange}
+                  label="Kategori"
+                  required
+                >
+                  <MenuItem value="">Seçiniz</MenuItem>
+                  {kategoriler.map((kategori) => (
+                    <MenuItem key={kategori} value={kategori}>
+                      {kategori}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <DatePicker
+                label="Başlangıç Tarihi"
+                value={formData.baslangic_tarih}
+                onChange={(date) => handleDateChange('baslangic_tarih', date)}
+                renderInput={(params) => (
+                  <TextField {...params} fullWidth margin="normal" required />
+                )}
+              />
+              <DatePicker
+                label="Bitiş Tarihi"
+                value={formData.bitis_tarih}
+                onChange={(date) => handleDateChange('bitis_tarih', date)}
+                renderInput={(params) => (
+                  <TextField {...params} fullWidth margin="normal" required />
+                )}
+              />
+              <TextField
+                label="Açıklama"
+                name="aciklama"
+                value={formData.aciklama}
+                onChange={handleChange}
+                fullWidth
+                required
+                multiline
+                rows={3}
+                margin="normal"
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                disabled={loading}
+                sx={{ mt: 2 }}
+                startIcon={loading && <CircularProgress size={20} color="inherit" />}
+              >
+                {loading ? 'Ekleniyor...' : 'İlan Ekle'}
+              </Button>
+            </Box>
+          </LocalizationProvider>
 
-          {/* Mevcut İlanlar */}
           <Typography variant="h5" component="h2" gutterBottom>
             Mevcut İlanlar
           </Typography>
@@ -218,58 +263,68 @@ const AdminPanel = () => {
                   }
                 >
                   {editFormData && editFormData.ilan_id === ann.ilan_id ? (
-                    <Box sx={{ width: '100%' }}>
-                      <TextField
-                        label="Kategori"
-                        name="kategori"
-                        value={editFormData.kategori}
-                        onChange={handleEditChange}
-                        fullWidth
-                        margin="normal"
-                      />
-                      <TextField
-                        label="Başlangıç Tarihi (YYYY-MM-DD)"
-                        name="baslangic_tarih"
-                        value={editFormData.baslangic_tarih}
-                        onChange={handleEditChange}
-                        fullWidth
-                        margin="normal"
-                      />
-                      <TextField
-                        label="Bitiş Tarihi (YYYY-MM-DD)"
-                        name="bitis_tarih"
-                        value={editFormData.bitis_tarih}
-                        onChange={handleEditChange}
-                        fullWidth
-                        margin="normal"
-                      />
-                      <TextField
-                        label="Açıklama"
-                        name="aciklama"
-                        value={editFormData.aciklama}
-                        onChange={handleEditChange}
-                        fullWidth
-                        multiline
-                        rows={2}
-                        margin="normal"
-                      />
-                      <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                        <Button
-                          variant="contained"
-                          onClick={() => handleUpdate(ann.ilan_id)}
-                          disabled={loading}
-                        >
-                          Kaydet
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          onClick={() => setEditFormData(null)}
-                          disabled={loading}
-                        >
-                          İptal
-                        </Button>
+                    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={tr}>
+                      <Box sx={{ width: '100%' }}>
+                        <FormControl fullWidth margin="normal">
+                          <InputLabel>Kategori</InputLabel>
+                          <Select
+                            name="kategori"
+                            value={editFormData.kategori}
+                            onChange={handleEditChange}
+                            label="Kategori"
+                          >
+                            <MenuItem value="">Seçiniz</MenuItem>
+                            {kategoriler.map((kategori) => (
+                              <MenuItem key={kategori} value={kategori}>
+                                {kategori}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <DatePicker
+                          label="Başlangıç Tarihi"
+                          value={editFormData.baslangic_tarih}
+                          onChange={(date) => handleEditDateChange('baslangic_tarih', date)}
+                          renderInput={(params) => (
+                            <TextField {...params} fullWidth margin="normal" />
+                          )}
+                        />
+                        <DatePicker
+                          label="Bitiş Tarihi"
+                          value={editFormData.bitis_tarih}
+                          onChange={(date) => handleEditDateChange('bitis_tarih', date)}
+                          renderInput={(params) => (
+                            <TextField {...params} fullWidth margin="normal" />
+                          )}
+                        />
+                        <TextField
+                          label="Açıklama"
+                          name="aciklama"
+                          value={editFormData.aciklama}
+                          onChange={handleEditChange}
+                          fullWidth
+                          multiline
+                          rows={2}
+                          margin="normal"
+                        />
+                        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                          <Button
+                            variant="contained"
+                            onClick={() => handleUpdate(ann.ilan_id)}
+                            disabled={loading}
+                          >
+                            Kaydet
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            onClick={() => setEditFormData(null)}
+                            disabled={loading}
+                          >
+                            İptal
+                          </Button>
+                        </Box>
                       </Box>
-                    </Box>
+                    </LocalizationProvider>
                   ) : (
                     <ListItemText
                       primary={`${ann.kategori} - ${ann.aciklama}`}

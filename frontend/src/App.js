@@ -1,71 +1,75 @@
-import React, { useContext } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
-import Announcements from './pages/Announcements';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import Apply from './pages/Apply';
 import AdminPanel from './pages/AdminPanel';
-import Application from './pages/Application';
 import MyApplications from './pages/MyApplications';
-import AdminApplications from './pages/AdminApplications'; // Yeni sayfa
-import { AuthContext } from './context/AuthContext';
-
-const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { user } = useContext(AuthContext);
-  if (!user) return <Navigate to="/login" />;
-  if (allowedRoles && !allowedRoles.includes(user.rol)) return <Navigate to="/" />;
-  return children;
-};
+import AdminApplications from './pages/AdminApplications';
+import ManagerPanel from './pages/ManagerPanel'; // Yeni eklenen sayfa
+import JuriPanel from './pages/JuriPanel'; // Yeni eklenen sayfa
+import PrivateRoute from './components/PrivateRoute';
 
 function App() {
   return (
     <Router>
-      <div className="App">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route
-            path="/announcements"
-            element={
-              <ProtectedRoute allowedRoles={['Aday']}>
-                <Announcements />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/apply"
-            element={
-              <ProtectedRoute allowedRoles={['Aday']}>
-                <Application />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/my-applications"
-            element={
-              <ProtectedRoute allowedRoles={['Aday']}>
-                <MyApplications />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute allowedRoles={['Admin']}>
-                <AdminPanel />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/applications"
-            element={
-              <ProtectedRoute allowedRoles={['Admin']}>
-                <AdminApplications />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/" element={<Login />} />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route
+          path="/apply"
+          element={
+            <PrivateRoute roles={['Aday']}>
+              <Apply />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <PrivateRoute roles={['Admin']}>
+              <AdminPanel />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/my-applications"
+          element={
+            <PrivateRoute roles={['Aday']}>
+              <MyApplications />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin/applications"
+          element={
+            <PrivateRoute roles={['Admin']}>
+              <AdminApplications />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin/manager"
+          element={
+            <PrivateRoute roles={['Yonetici']}>
+              <ManagerPanel />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/juri"
+          element={
+            <PrivateRoute roles={['Juri']}>
+              <JuriPanel />
+            </PrivateRoute>
+          }
+        />
+        <Route path="/" element={<Login />} />
+      </Routes>
     </Router>
   );
 }

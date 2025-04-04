@@ -2,22 +2,17 @@ const jwt = require('jsonwebtoken');
 
 const authMiddleware = (req, res, next) => {
   const token = req.header('Authorization')?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ message: 'Yetkisiz erişim' });
+  if (!token) {
+    return res.status(401).json({ message: 'Yetkilendirme başarısız: Token bulunamadı' });
+  }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    req.user = decoded; // decoded içinde { tc_kimlik, role } var
     next();
   } catch (err) {
-    res.status(401).json({ message: 'Geçersiz token' });
+    res.status(401).json({ message: 'Yetkilendirme başarısız: Geçersiz token' });
   }
 };
 
-const roleMiddleware = (roles) => (req, res, next) => {
-  if (!roles.includes(req.user.rol)) {
-    return res.status(403).json({ message: 'Bu işlem için yetkiniz yok' });
-  }
-  next();
-};
-
-module.exports = { authMiddleware, roleMiddleware };
+module.exports = authMiddleware;

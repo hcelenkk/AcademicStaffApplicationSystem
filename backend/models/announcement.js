@@ -1,36 +1,34 @@
 const pool = require('../config/db');
 
 const Announcement = {
-  create: async (kategori, baslangic_tarih, bitis_tarih, aciklama, admin_tc) => {
-    const query = `
-      INSERT INTO ilan (kategori, baslangic_tarih, bitis_tarih, aciklama, admin_tc)
-      VALUES ($1, $2, $3, $4, $5) RETURNING *`;
-    const values = [kategori, baslangic_tarih, bitis_tarih, aciklama, admin_tc];
-    const result = await pool.query(query, values);
-    return result.rows[0];
-  },
   getAll: async () => {
-    const result = await pool.query('SELECT * FROM ilan');
+    const query = `
+      SELECT * FROM ilan
+      WHERE bitis_tarih >= CURRENT_DATE`;
+    const result = await pool.query(query);
     return result.rows;
   },
-  delete: async (ilan_id) => {
-    const query = 'DELETE FROM ilan WHERE ilan_id = $1 RETURNING *';
-    const result = await pool.query(query, [ilan_id]);
-    if (result.rowCount === 0) {
-      throw new Error('İlan bulunamadı');
-    }
+  create: async (kategori, aciklama, baslangic_tarih, bitis_tarih) => {
+    const query = `
+      INSERT INTO ilan (kategori, aciklama, baslangic_tarih, bitis_tarih)
+      VALUES ($1, $2, $3, $4) RETURNING *`;
+    const values = [kategori, aciklama, baslangic_tarih, bitis_tarih];
+    const result = await pool.query(query, values);
+    return result.rows[0];
   },
-  update: async (ilan_id, kategori, baslangic_tarih, bitis_tarih, aciklama) => {
+  update: async (ilan_id, kategori, aciklama, baslangic_tarih, bitis_tarih) => {
     const query = `
       UPDATE ilan
-      SET kategori = $1, baslangic_tarih = $2, bitis_tarih = $3, aciklama = $4
+      SET kategori = $1, aciklama = $2, baslangic_tarih = $3, bitis_tarih = $4
       WHERE ilan_id = $5 RETURNING *`;
-    const values = [kategori, baslangic_tarih, bitis_tarih, aciklama, ilan_id];
+    const values = [kategori, aciklama, baslangic_tarih, bitis_tarih, ilan_id];
     const result = await pool.query(query, values);
-    if (result.rowCount === 0) {
-      throw new Error('İlan bulunamadı');
-    }
     return result.rows[0];
+  },
+  delete: async (ilan_id) => {
+    const query = 'DELETE FROM ilan WHERE ilan_id = $1';
+    const result = await pool.query(query, [ilan_id]);
+    return result.rowCount;
   },
 };
 
