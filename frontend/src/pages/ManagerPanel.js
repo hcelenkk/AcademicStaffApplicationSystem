@@ -4,176 +4,202 @@ import {
   Container,
   Typography,
   Box,
-  TextField,
-  Button,
   List,
   ListItem,
   ListItemText,
+  Button,
+  TextField,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  Checkbox,
-  FormControlLabel,
-  Divider,
-  Chip,
+  Switch,
+  IconButton,
+  Snackbar,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
+import { Edit } from '@mui/icons-material';
 import Header from '../components/Header';
 
-const kadroTipleri = ['Dr. Öğr. Üyesi', 'Doçent', 'Profesör'];
-
 const ManagerPanel = () => {
-  const [kriterler, setKriterler] = useState([]);
-  const [newKriter, setNewKriter] = useState({
+  const [criteria, setCriteria] = useState([]);
+  const [juriMembers, setJuriMembers] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [newCriterion, setNewCriterion] = useState({
     kategori: '',
     aciklama: '',
     min_puan: '',
     max_puan: '',
     aktif: true,
   });
-  const [juriUyeleri, setJuriUyeleri] = useState([]);
+  const [editCriterion, setEditCriterion] = useState(null);
   const [newJuri, setNewJuri] = useState({
     tc_kimlik: '',
     ad: '',
     soyad: '',
-    email: '',
+    eposta: '',
   });
-  const [basvurular, setBasvurular] = useState([]);
-  const [selectedBasvuru, setSelectedBasvuru] = useState(null);
-  const [selectedJuriUyeleri, setSelectedJuriUyeleri] = useState([]);
-  const [puanDetaylari, setPuanDetaylari] = useState(null);
+  const [assignment, setAssignment] = useState({
+    basvuru_id: '',
+    juriTcKimliks: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    const fetchKriterler = async () => {
+    const fetchData = async () => {
       try {
-        const response = await api.get('/manager/kriterler');
-        setKriterler(response.data);
+        setLoading(true);
+        const [criteriaRes, juriRes, applicationsRes] = await Promise.all([
+          api.get('/manager/criteria'),
+          api.get('/users?rol=Jüri'),
+          api.get('/applications/admin'),
+        ]);
+        setCriteria(criteriaRes.data);
+        setJuriMembers(juriRes.data);
+        setApplications(applicationsRes.data);
       } catch (err) {
-        console.error('Kriterler yüklenemedi:', err);
+        console.error('Veriler yüklenemedi:', err.response?.data || err.message);
+        setError('Veriler yüklenemedi. Lütfen tekrar deneyin.');
+      } finally {
+        setLoading(false);
       }
     };
-
-    const fetchJuriUyeleri = async () => {
-      try {
-        const response = await api.get('/kullanici?rol=Juri');
-        setJuriUyeleri(response.data);
-      } catch (err) {
-        console.error('Jüri üyeleri yüklenemedi:', err);
-      }
-    };
-
-    const fetchBasvurular = async () => {
-      try {
-        const response = await api.get('/applications/admin');
-        setBasvurular(response.data);
-      } catch (err) {
-        console.error('Başvurular yüklenemedi:', err);
-      }
-    };
-
-    fetchKriterler();
-    fetchJuriUyeleri();
-    fetchBasvurular();
+    fetchData();
   }, []);
 
-  const handleKriterChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setNewKriter({
-      ...newKriter,
-      [name]: type === 'checkbox' ? checked : value,
-    });
+  const handleCriterionChange = (e) => {
+    setNewCriterion({ ...newCriterion, [e.target.name]: e.target.value });
+  };
+
+  const handleCriterionSwitchChange = (e) => {
+    setNewCriterion({ ...newCriterion, aktif: e.target.checked });
+  };
+
+  const handleAddCriterion = async () => {
+    if (!newCriterion.kategori || !newCriterion.aciklama || !newCriterion.min_puan || !newCriterion.max_puan) {
+      setError('Tüm kriter alanları doldurulmalıdır.');
+      return;
+    }
+    if (parseInt(newCriterion.min_puan) >= parseInt(newCriterion.max_puan)) {
+      setError('Minimum puan, maksimum puandan küçük olmalıdır.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await api.post('/manager/criteria', newCriterion);
+      setCriteria([...criteria, response.data]);
+      setSuccess('Kriter başarıyla eklendi!');
+      setError('');
+      setNewCriterion({ kategori: '', aciklama: '', min_puan: '', max_puan: '', aktif: true });
+    } catch (err) {
+      console.error('Kriter eklenemedi:', err.response?.data || err.message);
+      setError(err.response?.data?.message || 'Kriter eklenemedi. Lütfen tekrar deneyin.');
+      setSuccess('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditCriterion = (criterion) => {
+    setEditCriterion(criterion);
+  };
+
+  const handleUpdateCriterion = async () => {
+    if (!editCriterion.kategori || !editCriterion.aciklama || !editCriterion.min_puan || !editCriterion.max_puan) {
+      setError('Tüm kriter alanları doldurulmalıdır.');
+      return;
+    }
+    if (parseInt(editCriterion.min_puan) >= parseInt(editCriterion.max_puan)) {
+      setError('Minimum puan, maksimum puandan küçük olmalıdır.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await api.put(`/manager/criteria/${editCriterion.kriter_id}`, editCriterion);
+      setCriteria(criteria.map((c) => (c.kriter_id === editCriterion.kriter_id ? response.data : c)));
+      setSuccess('Kriter başarıyla güncellendi!');
+      setError('');
+      setEditCriterion(null);
+    } catch (err) {
+      console.error('Kriter güncellenemedi:', err.response?.data || err.message);
+      setError(err.response?.data?.message || 'Kriter güncellenemedi. Lütfen tekrar deneyin.');
+      setSuccess('');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleJuriChange = (e) => {
     setNewJuri({ ...newJuri, [e.target.name]: e.target.value });
   };
 
-  const handleAddKriter = async () => {
-    try {
-      const response = await api.post('/manager/kriterler', newKriter);
-      setKriterler([...kriterler, response.data]);
-      setNewKriter({
-        kategori: '',
-        aciklama: '',
-        min_puan: '',
-        max_puan: '',
-        aktif: true,
-      });
-      alert('Kriter eklendi!');
-    } catch (err) {
-      console.error('Kriter ekleme hatası:', err);
-      alert('Kriter eklenemedi.');
-    }
-  };
-
   const handleAddJuri = async () => {
+    // TC Kimlik numarasını temizle ve string'e çevir
+    const cleanedTcKimlik = String(newJuri.tc_kimlik).trim();
+  
+    // 11 haneli ve yalnızca rakamlardan oluştuğunu kontrol et
+    if (!cleanedTcKimlik || !/^\d{11}$/.test(cleanedTcKimlik)) {
+      setError('Lütfen geçerli bir 11 haneli TC Kimlik Numarası girin.');
+      return;
+    }
+  
+    if (!newJuri.ad || !newJuri.soyad || !newJuri.eposta) {
+      setError('Tüm jüri bilgileri doldurulmalıdır.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newJuri.eposta)) {
+      setError('Geçersiz e-posta formatı.');
+      return;
+    }
+  
+    setLoading(true);
     try {
-      const response = await api.post('/manager/juri', newJuri);
-      setJuriUyeleri([...juriUyeleri, response.data]);
-      setNewJuri({ tc_kimlik: '', ad: '', soyad: '', email: '' });
-      alert('Jüri üyesi eklendi!');
+      const response = await api.post('/manager/juri', { ...newJuri, tc_kimlik: cleanedTcKimlik });
+      setJuriMembers([...juriMembers, response.data]);
+      setSuccess('Jüri üyesi başarıyla eklendi!');
+      setError('');
+      setNewJuri({ tc_kimlik: '', ad: '', soyad: '', eposta: '' });
     } catch (err) {
-      console.error('Jüri ekleme hatası:', err);
-      alert('Jüri üyesi eklenemedi.');
+      console.error('Jüri eklenemedi:', err.response?.data || err.message);
+      setError(err.response?.data?.message || 'Jüri eklenemedi. Lütfen tekrar deneyin.');
+      setSuccess('');
+    } finally {
+      setLoading(false);
     }
   };
-
-  const handleSelectBasvuru = (basvuru) => {
-    setSelectedBasvuru(basvuru);
-    setSelectedJuriUyeleri([]);
-    setPuanDetaylari(null);
+  const handleAssignmentChange = (e) => {
+    setAssignment({ ...assignment, [e.target.name]: e.target.value });
   };
 
-  const handleJuriSelect = (juri) => {
-    if (selectedJuriUyeleri.includes(juri)) {
-      setSelectedJuriUyeleri(selectedJuriUyeleri.filter((j) => j !== juri));
-    } else if (selectedJuriUyeleri.length < 5) {
-      setSelectedJuriUyeleri([...selectedJuriUyeleri, juri]);
-    } else {
-      alert('En fazla 5 jüri üyesi seçebilirsiniz.');
+  const handleAssignJuri = async () => {
+    if (!assignment.basvuru_id || assignment.juriTcKimliks.length === 0) {
+      setError('Lütfen bir başvuru ve en az bir jüri üyesi seçin.');
+      return;
     }
-  };
 
-  const handleJuriAtama = async () => {
+    setLoading(true);
     try {
-      await api.post('/manager/basvuru-juri', {
-        basvuru_id: selectedBasvuru.basvuru_id,
-        juri_tcs: selectedJuriUyeleri.map((juri) => juri.tc_kimlik),
-      });
-      alert('Jüri üyeleri atandı!');
-      setSelectedBasvuru(null);
-      setSelectedJuriUyeleri([]);
+      await api.post('/manager/application-juri', assignment);
+      setSuccess('Jüri üyeleri başarıyla atandı!');
+      setError('');
+      setAssignment({ basvuru_id: '', juriTcKimliks: [] });
     } catch (err) {
-      console.error('Jüri atama hatası:', err);
-      alert('Jüri atama başarısız.');
+      console.error('Jüri atama hatası:', err.response?.data || err.message);
+      setError(err.response?.data?.message || 'Jüri atama başarısız. Lütfen tekrar deneyin.');
+      setSuccess('');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handlePuanHesapla = async (basvuru_id) => {
-    try {
-      const response = await api.post(`/applications/${basvuru_id}/puan-hesapla`);
-      setPuanDetaylari(response.data);
-      // Başvuru listesini güncelle
-      const updatedBasvurular = basvurular.map((basvuru) =>
-        basvuru.basvuru_id === basvuru_id
-          ? { ...basvuru, puan: response.data.toplam_puan }
-          : basvuru
-      );
-      setBasvurular(updatedBasvurular);
-      alert('Puan hesaplandı!');
-    } catch (err) {
-      console.error('Puan hesaplama hatası:', err);
-      alert('Puan hesaplama başarısız.');
-    }
-  };
-
-  const formatDate = (isoDate) => {
-    if (!isoDate) return 'Tarih belirtilmemiş';
-    return new Date(isoDate).toLocaleDateString('tr-TR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+  const handleSnackbarClose = () => {
+    setSuccess('');
+    setError('');
   };
 
   return (
@@ -185,89 +211,162 @@ const ManagerPanel = () => {
             Yönetici Paneli
           </Typography>
 
-          {/* Kadro Kriterleri Yönetimi */}
           <Typography variant="h5" gutterBottom>
-            Kadro Kriterleri Yönetimi
+            Kriter Yönetimi
           </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
-            <FormControl fullWidth>
-              <InputLabel>Kadro Tipi</InputLabel>
-              <Select
-                name="kategori"
-                value={newKriter.kategori}
-                onChange={handleKriterChange}
-                label="Kadro Tipi"
-              >
-                <MenuItem value="">Seçiniz</MenuItem>
-                {kadroTipleri.map((tip) => (
-                  <MenuItem key={tip} value={tip}>
-                    {tip}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+          <Box sx={{ mb: 4 }}>
+            <TextField
+              label="Kategori"
+              name="kategori"
+              value={newCriterion.kategori}
+              onChange={handleCriterionChange}
+              fullWidth
+              margin="normal"
+            />
             <TextField
               label="Açıklama"
               name="aciklama"
-              value={newKriter.aciklama}
-              onChange={handleKriterChange}
+              value={newCriterion.aciklama}
+              onChange={handleCriterionChange}
               fullWidth
+              margin="normal"
             />
             <TextField
               label="Minimum Puan"
               name="min_puan"
               type="number"
-              value={newKriter.min_puan}
-              onChange={handleKriterChange}
+              value={newCriterion.min_puan}
+              onChange={handleCriterionChange}
               fullWidth
+              margin="normal"
             />
             <TextField
               label="Maksimum Puan"
               name="max_puan"
               type="number"
-              value={newKriter.max_puan}
-              onChange={handleKriterChange}
+              value={newCriterion.max_puan}
+              onChange={handleCriterionChange}
               fullWidth
+              margin="normal"
             />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  name="aktif"
-                  checked={newKriter.aktif}
-                  onChange={handleKriterChange}
-                />
-              }
-              label="Aktif"
-            />
-            <Button variant="contained" color="primary" onClick={handleAddKriter}>
-              Kriter Ekle
+            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+              <Typography>Aktif</Typography>
+              <Switch
+                checked={newCriterion.aktif}
+                onChange={handleCriterionSwitchChange}
+                name="aktif"
+              />
+            </Box>
+            <Button
+              variant="contained"
+              onClick={handleAddCriterion}
+              disabled={loading}
+              sx={{ mt: 2 }}
+            >
+              {loading ? <CircularProgress size={20} color="inherit" /> : 'Kriter Ekle'}
             </Button>
           </Box>
 
-          <List>
-            {kriterler.map((kriter) => (
-              <ListItem key={kriter.kriter_id}>
-                <ListItemText
-                  primary={`${kriter.kategori} - ${kriter.aciklama}`}
-                  secondary={`Min Puan: ${kriter.min_puan} | Max Puan: ${kriter.max_puan} | Aktif: ${kriter.aktif ? 'Evet' : 'Hayır'}`}
-                />
-              </ListItem>
-            ))}
-          </List>
-
-          <Divider sx={{ my: 4 }} />
-
-          {/* Jüri Üyesi Ekleme */}
-          <Typography variant="h5" gutterBottom>
-            Jüri Üyesi Ekleme
+          <Typography variant="h6" gutterBottom>
+            Mevcut Kriterler
           </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
+          {criteria.length > 0 ? (
+            <List>
+              {criteria.map((criterion) => (
+                <ListItem
+                  key={criterion.kriter_id}
+                  secondaryAction={
+                    <IconButton onClick={() => handleEditCriterion(criterion)}>
+                      <Edit />
+                    </IconButton>
+                  }
+                >
+                  {editCriterion && editCriterion.kriter_id === criterion.kriter_id ? (
+                    <Box sx={{ width: '100%' }}>
+                      <TextField
+                        label="Kategori"
+                        name="kategori"
+                        value={editCriterion.kategori}
+                        onChange={(e) => setEditCriterion({ ...editCriterion, kategori: e.target.value })}
+                        fullWidth
+                        margin="normal"
+                      />
+                      <TextField
+                        label="Açıklama"
+                        name="aciklama"
+                        value={editCriterion.aciklama}
+                        onChange={(e) => setEditCriterion({ ...editCriterion, aciklama: e.target.value })}
+                        fullWidth
+                        margin="normal"
+                      />
+                      <TextField
+                        label="Minimum Puan"
+                        name="min_puan"
+                        type="number"
+                        value={editCriterion.min_puan}
+                        onChange={(e) => setEditCriterion({ ...editCriterion, min_puan: e.target.value })}
+                        fullWidth
+                        margin="normal"
+                      />
+                      <TextField
+                        label="Maksimum Puan"
+                        name="max_puan"
+                        type="number"
+                        value={editCriterion.max_puan}
+                        onChange={(e) => setEditCriterion({ ...editCriterion, max_puan: e.target.value })}
+                        fullWidth
+                        margin="normal"
+                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                        <Typography>Aktif</Typography>
+                        <Switch
+                          checked={editCriterion.aktif}
+                          onChange={(e) => setEditCriterion({ ...editCriterion, aktif: e.target.checked })}
+                        />
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                        <Button
+                          variant="contained"
+                          onClick={handleUpdateCriterion}
+                          disabled={loading}
+                        >
+                          Kaydet
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={() => setEditCriterion(null)}
+                          disabled={loading}
+                        >
+                          İptal
+                        </Button>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <ListItemText
+                      primary={`${criterion.kategori} - ${criterion.aciklama}`}
+                      secondary={`Min: ${criterion.min_puan} | Max: ${criterion.max_puan} | Aktif: ${criterion.aktif ? 'Evet' : 'Hayır'}`}
+                    />
+                  )}
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography variant="body1" color="text.secondary">
+              Henüz kriter eklenmemiş.
+            </Typography>
+          )}
+
+          <Typography variant="h5" gutterBottom sx={{ mt: 4 }}>
+            Jüri Yönetimi
+          </Typography>
+          <Box sx={{ mb: 4 }}>
             <TextField
               label="TC Kimlik Numarası"
               name="tc_kimlik"
               value={newJuri.tc_kimlik}
               onChange={handleJuriChange}
               fullWidth
+              margin="normal"
             />
             <TextField
               label="Ad"
@@ -275,6 +374,7 @@ const ManagerPanel = () => {
               value={newJuri.ad}
               onChange={handleJuriChange}
               fullWidth
+              margin="normal"
             />
             <TextField
               label="Soyad"
@@ -282,105 +382,107 @@ const ManagerPanel = () => {
               value={newJuri.soyad}
               onChange={handleJuriChange}
               fullWidth
+              margin="normal"
             />
             <TextField
               label="E-posta"
-              name="email"
-              value={newJuri.email}
+              name="eposta"
+              value={newJuri.eposta}
               onChange={handleJuriChange}
               fullWidth
+              margin="normal"
             />
-            <Button variant="contained" color="primary" onClick={handleAddJuri}>
-              Jüri Üyesi Ekle
+            <Button
+              variant="contained"
+              onClick={handleAddJuri}
+              disabled={loading}
+              sx={{ mt: 2 }}
+            >
+              {loading ? <CircularProgress size={20} color="inherit" /> : 'Jüri Ekle'}
             </Button>
           </Box>
 
-          <Divider sx={{ my: 4 }} />
-
-          {/* Jüri Atama ve Puan Hesaplama */}
-          <Typography variant="h5" gutterBottom>
-            Başvuru Yönetimi
-          </Typography>
           <Typography variant="h6" gutterBottom>
-            Başvurular
+            Mevcut Jüri Üyeleri
           </Typography>
-          <List>
-            {basvurular.map((basvuru) => (
-              <ListItem
-                key={basvuru.basvuru_id}
-                button
-                onClick={() => handleSelectBasvuru(basvuru)}
-              >
-                <ListItemText
-                  primary={`Aday: ${basvuru.aday.ad} ${basvuru.aday.soyad}`}
-                  secondary={`İlan: ${basvuru.ilan.kategori} - ${basvuru.ilan.aciklama} | Durum: ${basvuru.durum} | Başvuru Tarihi: ${formatDate(basvuru.basvuru_tarih)} | Puan: ${basvuru.puan || 'Hesaplanmadı'}`}
-                />
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePuanHesapla(basvuru.basvuru_id);
-                  }}
-                >
-                  Puan Hesapla
-                </Button>
-              </ListItem>
-            ))}
-          </List>
-
-          {selectedBasvuru && (
-            <Box sx={{ mt: 4 }}>
-              <Typography variant="h6" gutterBottom>
-                Jüri Üyeleri Seç
-              </Typography>
-              <List>
-                {juriUyeleri.map((juri) => (
-                  <ListItem
-                    key={juri.tc_kimlik}
-                    button
-                    onClick={() => handleJuriSelect(juri)}
-                    selected={selectedJuriUyeleri.includes(juri)}
-                  >
-                    <ListItemText primary={`${juri.ad} ${juri.soyad}`} />
-                    {selectedJuriUyeleri.includes(juri) && (
-                      <Chip label="Seçildi" color="primary" />
-                    )}
-                  </ListItem>
-                ))}
-              </List>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleJuriAtama}
-                disabled={selectedJuriUyeleri.length === 0}
-              >
-                Jüriyi Ata
-              </Button>
-            </Box>
+          {juriMembers.length > 0 ? (
+            <List>
+              {juriMembers.map((juri) => (
+                <ListItem key={juri.tc_kimlik}>
+                  <ListItemText
+                    primary={`${juri.ad} ${juri.soyad}`}
+                    secondary={`E-posta: ${juri.eposta} | TC Kimlik: ${juri.tc_kimlik}`}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography variant="body1" color="text.secondary">
+              Henüz jüri üyesi eklenmemiş.
+            </Typography>
           )}
 
-          {puanDetaylari && (
-            <Box sx={{ mt: 4 }}>
-              <Typography variant="h6" gutterBottom>
-                Puanlama Detayları
-              </Typography>
-              <Typography variant="body1">
-                Toplam Puan: {puanDetaylari.toplam_puan}
-              </Typography>
-              <List>
-                {puanDetaylari.detaylar.map((detay) => (
-                  <ListItem key={detay.kriter_id}>
-                    <ListItemText
-                      primary={detay.aciklama}
-                      secondary={`Verilen Puan: ${detay.verilen_puan}`}
-                    />
-                  </ListItem>
+          <Typography variant="h5" gutterBottom sx={{ mt: 4 }}>
+            Jüri Atama
+          </Typography>
+          <Box sx={{ mb: 4 }}>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Başvuru Seç</InputLabel>
+              <Select
+                name="basvuru_id"
+                value={assignment.basvuru_id}
+                onChange={handleAssignmentChange}
+                label="Başvuru Seç"
+              >
+                <MenuItem value="">Seçiniz</MenuItem>
+                {applications.map((app) => (
+                  <MenuItem key={app.basvuru_id} value={app.basvuru_id}>
+                    {`${app.aday.ad} ${app.aday.soyad} - ${app.ilan.kategori}`}
+                  </MenuItem>
                 ))}
-              </List>
-            </Box>
-          )}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Jüri Üyeleri Seç</InputLabel>
+              <Select
+                name="juriTcKimliks"
+                multiple
+                value={assignment.juriTcKimliks}
+                onChange={handleAssignmentChange}
+                label="Jüri Üyeleri Seç"
+              >
+                {juriMembers.map((juri) => (
+                  <MenuItem key={juri.tc_kimlik} value={juri.tc_kimlik}>
+                    {`${juri.ad} ${juri.soyad}`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
+              variant="contained"
+              onClick={handleAssignJuri}
+              disabled={loading}
+              sx={{ mt: 2 }}
+            >
+              {loading ? <CircularProgress size={20} color="inherit" /> : 'Jüri Ata'}
+            </Button>
+          </Box>
         </Box>
+
+        <Snackbar
+          open={!!success || !!error}
+          autoHideDuration={6000}
+          onClose={handleSnackbarClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert
+            onClose={handleSnackbarClose}
+            severity={success ? 'success' : 'error'}
+            sx={{ width: '100%' }}
+          >
+            {success || error}
+          </Alert>
+        </Snackbar>
       </Container>
     </>
   );

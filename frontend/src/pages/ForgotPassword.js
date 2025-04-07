@@ -19,6 +19,13 @@ const ForgotPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // E-posta doğrulama
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eposta)) {
+      setError('Geçerli bir e-posta adresi girin.');
+      return;
+    }
+
     try {
       const response = await api.post('/auth/forgot-password', {
         tc_kimlik: tcKimlik,
@@ -71,6 +78,8 @@ const ForgotPassword = () => {
               autoComplete="email"
               value={eposta}
               onChange={(e) => setEposta(e.target.value)}
+              error={!!error && error.includes('e-posta')}
+              helperText={error.includes('e-posta') ? error : ''}
             />
             <Button
               type="submit"
@@ -83,7 +92,6 @@ const ForgotPassword = () => {
           </Box>
         </Box>
 
-        {/* Bildirimler */}
         <Snackbar
           open={!!success || !!error}
           autoHideDuration={6000}

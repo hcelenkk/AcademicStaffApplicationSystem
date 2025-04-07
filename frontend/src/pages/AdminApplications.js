@@ -12,75 +12,60 @@ import {
   Select,
   MenuItem,
   TextField,
+  Snackbar,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import Header from '../components/Header';
 
-const kategoriler = ['Dr. Öğr. Üyesi', 'Doçent', 'Profesör'];
-const durumlar = ['Beklemede', 'Kabul Edildi', 'Reddedildi'];
-
 const AdminApplications = () => {
   const [applications, setApplications] = useState([]);
-  const [filteredApplications, setFilteredApplications] = useState([]);
   const [filters, setFilters] = useState({
-    kategori: '',
     durum: '',
-    adSoyad: '', // Ad ve soyad için tek bir filtre
+    aday_ad: '',
+    kategori: '',
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     const fetchApplications = async () => {
       try {
-        const response = await api.get('/applications/admin');
+        setLoading(true);
+        const response = await api.get('/applications/admin', { params: filters });
         setApplications(response.data);
-        setFilteredApplications(response.data);
       } catch (err) {
-        console.error('Başvurular yüklenemedi:', err);
+        console.error('Başvurular yüklenemedi:', err.response?.data || err.message);
+        setError('Başvurular yüklenemedi. Lütfen tekrar deneyin.');
+      } finally {
+        setLoading(false);
       }
     };
     fetchApplications();
-  }, []);
-
-  useEffect(() => {
-    let filtered = applications;
-
-    if (filters.kategori) {
-      filtered = filtered.filter((app) => app.ilan.kategori === filters.kategori);
-    }
-    if (filters.durum) {
-      filtered = filtered.filter((app) => app.durum === filters.durum);
-    }
-    if (filters.adSoyad) {
-      const searchTerm = filters.adSoyad.toLowerCase().trim();
-      filtered = filtered.filter((app) => {
-        const fullName = `${app.aday.ad} ${app.aday.soyad}`.toLowerCase();
-        return fullName.includes(searchTerm);
-      });
-    }
-
-    setFilteredApplications(filtered);
-  }, [filters, applications]);
+  }, [filters]);
 
   const handleFilterChange = (e) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
   };
 
   const handleStatusChange = async (basvuru_id, newStatus) => {
+    setLoading(true);
     try {
-      const response = await api.put(`/applications/${basvuru_id}`, { durum: newStatus });
-      setApplications((prev) =>
-        prev.map((app) =>
+      const response = await api.put(`/applications/update-status/${basvuru_id}`, { durum: newStatus });
+      setApplications(
+        applications.map((app) =>
           app.basvuru_id === basvuru_id ? { ...app, durum: response.data.durum } : app
         )
       );
-      setFilteredApplications((prev) =>
-        prev.map((app) =>
-          app.basvuru_id === basvuru_id ? { ...app, durum: response.data.durum } : app
-        )
-      );
-      alert('Başvuru durumu güncellendi!');
+      setSuccess('Başvuru durumu başarıyla güncellendi!');
+      setError('');
     } catch (err) {
-      console.error('Durum güncelleme hatası:', err);
-      alert('Durum güncellenemedi. Lütfen tekrar deneyin.');
+      console.error('Durum güncelleme hatası:', err.response?.data || err.message);
+      setError(err.response?.data?.message || 'Durum güncellenemedi. Lütfen tekrar deneyin.');
+      setSuccess('');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -93,58 +78,71 @@ const AdminApplications = () => {
     });
   };
 
+  const handleSnackbarClose = () => {
+    setSuccess('');
+    setError('');
+  };
+
   return (
     <>
       <Header />
       <Container maxWidth="md">
         <Box sx={{ mt: 4 }}>
           <Typography variant="h4" component="h1" gutterBottom>
-            Başvuru Yönetimi
+            Admin Paneli - Başvuru Yönetimi
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-            <FormControl sx={{ minWidth: 200 }}>
-              <InputLabel>Kategoriye Göre Filtrele</InputLabel>
-              <Select
-                name="kategori"
-                value={filters.kategori}
-                onChange={handleFilterChange}
-                label="Kategoriye Göre Filtrele"
-              >
-                <MenuItem value="">Tümü</MenuItem>
-                {kategoriler.map((kategori) => (
-                  <MenuItem key={kategori} value={kategori}>
-                    {kategori}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl sx={{ minWidth: 200 }}>
-              <InputLabel>Duruma Göre Filtrele</InputLabel>
+
+          <Typography variant="h5" gutterBottom>
+            Filtreler
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+            <FormControl fullWidth>
+              <InputLabel>Durum</InputLabel>
               <Select
                 name="durum"
                 value={filters.durum}
                 onChange={handleFilterChange}
-                label="Duruma Göre Filtrele"
+                label="Durum"
               >
                 <MenuItem value="">Tümü</MenuItem>
-                {durumlar.map((durum) => (
-                  <MenuItem key={durum} value={durum}>
-                    {durum}
-                  </MenuItem>
-                ))}
+                <MenuItem value="Beklemede">Beklemede</MenuItem>
+                <MenuItem value="Kabul Edildi">Kabul Edildi</MenuItem>
+                <MenuItem value="Reddedildi">Reddedildi</MenuItem>
               </Select>
             </FormControl>
             <TextField
-              label="Ad Soyad ile Filtrele"
-              name="adSoyad"
-              value={filters.adSoyad}
+              label="Aday Adı"
+              name="aday_ad"
+              value={filters.aday_ad}
               onChange={handleFilterChange}
-              sx={{ minWidth: 200 }}
+              fullWidth
             />
+            <FormControl fullWidth>
+              <InputLabel>Kategori</InputLabel>
+              <Select
+                name="kategori"
+                value={filters.kategori}
+                onChange={handleFilterChange}
+                label="Kategori"
+              >
+                <MenuItem value="">Tümü</MenuItem>
+                <MenuItem value="Dr. Öğr. Üyesi">Dr. Öğretim Üyesi</MenuItem>
+                <MenuItem value="Doçent">Doçent</MenuItem>
+                <MenuItem value="Profesör">Profesör</MenuItem>
+              </Select>
+            </FormControl>
           </Box>
-          {filteredApplications.length > 0 ? (
+
+          <Typography variant="h5" gutterBottom>
+            Başvurular
+          </Typography>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <CircularProgress />
+            </Box>
+          ) : applications.length > 0 ? (
             <List>
-              {filteredApplications.map((app) => (
+              {applications.map((app) => (
                 <ListItem
                   key={app.basvuru_id}
                   secondaryAction={
@@ -154,6 +152,7 @@ const AdminApplications = () => {
                         value={app.durum}
                         onChange={(e) => handleStatusChange(app.basvuru_id, e.target.value)}
                         label="Durum"
+                        disabled={loading}
                       >
                         <MenuItem value="Beklemede">Beklemede</MenuItem>
                         <MenuItem value="Kabul Edildi">Kabul Edildi</MenuItem>
@@ -163,18 +162,33 @@ const AdminApplications = () => {
                   }
                 >
                   <ListItemText
-                    primary={`Aday: ${app.aday?.ad || 'Bilinmiyor'} ${app.aday?.soyad || 'Bilinmiyor'}`}
-                    secondary={`İlan: ${app.ilan?.kategori || 'Bilinmiyor'} - ${app.ilan?.aciklama || 'Açıklama yok'} | Başvuru Tarihi: ${formatDate(app.basvuru_tarih)} | Durum: ${app.durum}`}
+                    primary={`Aday: ${app.aday.ad} ${app.aday.soyad}`}
+                    secondary={`İlan: ${app.ilan.kategori} - ${app.ilan.aciklama} | Başvuru Tarihi: ${formatDate(app.olusturulma_tarih)} | Puan: ${app.puan !== null ? app.puan : 'Puanlama yapılmamış'}`}
                   />
                 </ListItem>
               ))}
             </List>
           ) : (
             <Typography variant="body1" color="text.secondary">
-              Filtrelenen kriterlere uygun başvuru yok.
+              Başvuru bulunmamaktadır.
             </Typography>
           )}
         </Box>
+
+        <Snackbar
+          open={!!success || !!error}
+          autoHideDuration={6000}
+          onClose={handleSnackbarClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert
+            onClose={handleSnackbarClose}
+            severity={success ? 'success' : 'error'}
+            sx={{ width: '100%' }}
+          >
+            {success || error}
+          </Alert>
+        </Snackbar>
       </Container>
     </>
   );

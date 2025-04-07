@@ -1,95 +1,110 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../config/db');
 const authMiddleware = require('../middleware/auth');
 const roleMiddleware = require('../middleware/role');
+const pool = require('../config/db');
 
-// Sabit kategoriler
-const kategoriler = ['Dr. Öğr. Üyesi', 'Doçent', 'Profesör'];
-
-// Kategorileri döndüren endpoint
-router.get('/kategoriler', async (req, res) => {
-  try {
-    res.json(kategoriler);
-  } catch (err) {
-    res.status(400).json({ message: 'Kategoriler getirilemedi', error: err.message });
-  }
-});
-
-// İlanları döndüren endpoint
+// Tüm İlanları Getirme (Herkes)
 router.get('/', async (req, res) => {
   try {
-    const query = `
-      SELECT * FROM ilan
-      WHERE bitis_tarih >= CURRENT_DATE`;
+    const query = 'SELECT * FROM public.ilan ORDER BY baslangic_tarih DESC';
     const result = await pool.query(query);
-    console.log('İlanlar getirildi:', result.rows); // Hata ayıklama için log
-    if (result.rowCount === 0) {
-      return res.status(204).send(); // Veri yoksa 204 dön
-    }
-    res.json(result.rows);
+    res.status(200).json(result.rows);
   } catch (err) {
-    console.error('İlanlar getirilemedi:', err);
-    res.status(500).json({ message: 'İlanlar getirilemedi', error: err.message });
+    console.error('İlan getirme hatası:', err.message);
+    res.status(500).json({ message: 'İlanlar getirilemedi' });
   }
 });
 
-// Yeni bir ilan oluşturma (Admin için)
+// Yeni İlan Ekleme (Admin)
 router.post('/', authMiddleware, roleMiddleware(['Admin']), async (req, res) => {
-  const { kategori, aciklama, baslangic_tarih, bitis_tarih } = req.body;
+  const { kategori, aciklama, baslangic_tarih, bitis_tarih, kriter_json } = req.body;
+
+  // Zorunlu alan kontrolü
+  if (!kategori || !aciklama || !baslangic_tarih || !bitis_tarih) {
+    return res.status(400).json({ message: 'Tüm zorunlu alanlar doldurulmalıdır.' });
+  }
+
+  // Tarih formatı kontrolü
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(baslangic_tarih) || !dateRegex.test(bitis_tarih)) {
+    return res.status(400).json({ message: 'Tarih formatı YYYY-MM-DD olmalıdır.' });
+  }
+
+  // Tarih mantıksal kontrolü
+  if (new Date(baslangic_tarih) >= new Date(bitis_tarih)) {
+    return res.status(400).json({ message: 'Başlangıç tarihi bitiş tarihinden önce olmalıdır.' });
+  }
+
   try {
-    if (!kategoriler.includes(kategori)) {
-      return res.status(400).json({ message: 'Geçersiz kategori' });
-    }
     const query = `
-      INSERT INTO ilan (kategori, aciklama, baslangic_tarih, bitis_tarih, durum)
-      VALUES ($1, $2, $3, $4, 'Aktif') RETURNING *`;
-    const values = [kategori, aciklama, baslangic_tarih, bitis_tarih];
+      INSERT INTO public.ilan (kategori, aciklama, baslangic_tarih, bitis_tarih, kriter_json)
+      VALUES ($1, $2, $3, $4, $5) RETURNING *`;
+    const values = [kategori, aciklama, baslangic_tarih, bitis_tarih, kriter_json || null];
     const result = await pool.query(query, values);
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('İlan oluşturulamadı:', err);
-    res.status(400).json({ message: 'İlan oluşturulamadı', error: err.message });
+    console.error('İlan ekleme hatası:', err.message);
+    res.status(500).json({ message: 'İlan eklenemedi' });
   }
 });
 
-// İlan güncelleme (Admin için)
-router.put('/:id', authMiddleware, roleMiddleware(['Admin']), async (req, res) => {
-  const { id } = req.params;
-  const { kategori, aciklama, baslangic_tarih, bitis_tarih, durum } = req.body;
+// İlan Güncelleme (Admin)
+router.put('/:ilan_id', authMiddleware, roleMiddleware(['Admin']), async (req, res) => {
+  const { ilan_id } = req.params;
+  const { kategori, aciklama, baslangic_tarih, bitis_tarih, kriter_json } = req.body;
+
+  // Zorunlu alan kontrolü
+  if (!kategori || !aciklama || !baslangic_tarih || !bitis_tarih) {
+    return res.status(400).json({ message: 'Tüm zorunlu alanlar doldurulmalıdır.' });
+  }
+
+  // Tarih formatı kontrolü
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(baslangic_tarih) || !dateRegex.test(bitis_tarih)) {
+    return res.status(400).json({ message: 'Tarih formatı YYYY-MM-DD olmalıdır.' });
+  }
+
+  // Tarih mantıksal kontrolü
+  if (new Date(baslangic_tarih) >= new Date(bitis_tarih)) {
+    return res.status(400).json({ message: 'Başlangıç tarihi bitiş tarihinden önce olmalıdır.' });
+  }
+
   try {
-    if (!kategoriler.includes(kategori)) {
-      return res.status(400).json({ message: 'Geçersiz kategori' });
-    }
     const query = `
-      UPDATE ilan
-      SET kategori = $1, aciklama = $2, baslangic_tarih = $3, bitis_tarih = $4, durum = $5
+      UPDATE public.ilan
+      SET kategori = $1, aciklama = $2, baslangic_tarih = $3, bitis_tarih = $4, kriter_json = $5
       WHERE ilan_id = $6 RETURNING *`;
-    const values = [kategori, aciklama, baslangic_tarih, bitis_tarih, durum || 'Aktif', id];
+    const values = [kategori, aciklama, baslangic_tarih, bitis_tarih, kriter_json || null, ilan_id];
     const result = await pool.query(query, values);
+
     if (result.rowCount === 0) {
       return res.status(404).json({ message: 'İlan bulunamadı' });
     }
-    res.json(result.rows[0]);
+
+    res.status(200).json(result.rows[0]);
   } catch (err) {
-    console.error('İlan güncellenemedi:', err);
-    res.status(400).json({ message: 'İlan güncellenemedi', error: err.message });
+    console.error('İlan güncelleme hatası:', err.message);
+    res.status(500).json({ message: 'İlan güncellenemedi' });
   }
 });
 
-// İlan silme (Admin için)
-router.delete('/:id', authMiddleware, roleMiddleware(['Admin']), async (req, res) => {
-  const { id } = req.params;
+// İlan Silme (Admin)
+router.delete('/:ilan_id', authMiddleware, roleMiddleware(['Admin']), async (req, res) => {
+  const { ilan_id } = req.params;
+
   try {
-    const query = 'DELETE FROM ilan WHERE ilan_id = $1';
-    const result = await pool.query(query, [id]);
+    const query = 'DELETE FROM public.ilan WHERE ilan_id = $1 RETURNING *';
+    const result = await pool.query(query, [ilan_id]);
+
     if (result.rowCount === 0) {
       return res.status(404).json({ message: 'İlan bulunamadı' });
     }
-    res.json({ message: 'İlan başarıyla silindi' });
+
+    res.status(200).json({ message: 'İlan başarıyla silindi' });
   } catch (err) {
-    console.error('İlan silinemedi:', err);
-    res.status(400).json({ message: 'İlan silinemedi', error: err.message });
+    console.error('İlan silme hatası:', err.message);
+    res.status(500).json({ message: 'İlan silinemedi' });
   }
 });
 

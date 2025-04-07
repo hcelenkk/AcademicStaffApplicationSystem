@@ -2,28 +2,29 @@ const nodemailer = require('nodemailer');
 
 // E-posta gönderim için transporter oluştur
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // Gmail kullanıyoruz, başka bir servis (örneğin, SendGrid) de kullanılabilir
+  service: 'gmail',
   auth: {
-    user: 'hcelenkk61@gmail.com', // Kendi Gmail adresin
-    pass: 'prbj isth fftf enba', // Gmail uygulama şifresi (aşağıda açıklanacak)
+    user: process.env.EMAIL_USER || 'hcelenkk61@gmail.com',
+    pass: process.env.EMAIL_PASS || 'prbj isth fftf enba',
   },
 });
 
 // E-posta gönderim fonksiyonu
-const sendEmail = async (to, subject, text) => {
+const sendEmail = async (to, subject, text, html) => {
   const mailOptions = {
-    from: 'hcelenkk61@gmail.com', // Gönderen e-posta adresi
-    to, // Alıcı e-posta adresi
-    subject, // E-posta konusu
-    text, // E-posta içeriği (düz metin)
+    from: process.env.EMAIL_USER || 'hcelenkk61@gmail.com',
+    to,
+    subject,
+    text,
+    html, // HTML içeriği destekleniyor
   };
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`E-posta gönderildi: ${to}`);
+    console.log(`E-posta gönderildi: ${to}, Konu: ${subject}`);
   } catch (err) {
-    console.error('E-posta gönderim hatası:', err);
-    throw new Error('E-posta gönderilemedi');
+    console.error('E-posta gönderim hatası:', err.message);
+    throw new Error('E-posta gönderilemedi: ' + err.message);
   }
 };
 

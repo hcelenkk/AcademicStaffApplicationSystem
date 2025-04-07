@@ -13,59 +13,91 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  CircularProgress,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import Header from '../components/Header';
 
 const JuriPanel = () => {
-  const [basvurular, setBasvurular] = useState([]);
-  const [selectedBasvuru, setSelectedBasvuru] = useState(null);
-  const [belgeler, setBelgeler] = useState([]);
-  const [degerlendirme, setDegerlendirme] = useState({
-    rapor_dosyasi: '',
-    sonuc: 'İnceleniyor',
+  const [applications, setApplications] = useState([]);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [evaluation, setEvaluation] = useState({
+    rapor: '',
+    sonuc: 'Kabul Edildi',
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    const fetchBasvurular = async () => {
+    const fetchApplications = async () => {
       try {
-        const response = await api.get('/juri/basvurular');
-        setBasvurular(response.data);
+        setLoading(true);
+        const response = await api.get('/juri/applications');
+        setApplications(response.data);
       } catch (err) {
-        console.error('Başvurular yüklenemedi:', err);
+        console.error('Başvurular yüklenemedi:', err.response?.data || err.message);
+        setError('Başvurular yüklenemedi. Lütfen tekrar deneyin.');
+      } finally {
+        setLoading(false);
       }
     };
-    fetchBasvurular();
+    fetchApplications();
   }, []);
 
-  const handleSelectBasvuru = async (basvuru) => {
-    setSelectedBasvuru(basvuru);
+  const handleSelectApplication = async (application) => {
+    setSelectedApplication(application);
+    setDocuments([]);
     try {
-      const response = await api.get(`/juri/basvuru/${basvuru.basvuru_id}/belgeler`);
-      setBelgeler(response.data);
+      setLoading(true);
+      const response = await api.get(`/juri/application/${application.basvuru_id}/documents`);
+      setDocuments(response.data);
     } catch (err) {
-      console.error('Belgeler yüklenemedi:', err);
+      console.error('Belgeler yüklenemedi:', err.response?.data || err.message);
+      setError('Belgeler yüklenemedi. Lütfen tekrar deneyin.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDegerlendirmeChange = (e) => {
-    setDegerlendirme({ ...degerlendirme, [e.target.name]: e.target.value });
+  const handleEvaluationChange = (e) => {
+    setEvaluation({ ...evaluation, [e.target.name]: e.target.value });
   };
 
-  const handleDegerlendirmeSubmit = async () => {
+  const handleEvaluationSubmit = async () => {
+    if (!evaluation.rapor.trim()) {
+      setError('Rapor alanı boş olamaz.');
+      return;
+    }
+
+    setLoading(true);
     try {
-      await api.post('/juri/degerlendirme', {
-        basvuru_id: selectedBasvuru.basvuru_id,
-        rapor_dosyasi: degerlendirme.rapor_dosyasi,
-        sonuc: degerlendirme.sonuc,
+      await api.post('/juri/evaluation', {
+        basvuru_id: selectedApplication.basvuru_id,
+        rapor: evaluation.rapor,
+        sonuc: evaluation.sonuc,
       });
-      alert('Değerlendirme kaydedildi!');
-      setDegerlendirme({ rapor_dosyasi: '', sonuc: 'İnceleniyor' });
-      setSelectedBasvuru(null);
-      setBelgeler([]);
+      setSuccess('Değerlendirme başarıyla kaydedildi!');
+      setError('');
+      setEvaluation({ rapor: '', sonuc: 'Kabul Edildi' });
+      setSelectedApplication(null);
+      setDocuments([]);
+      const response = await api.get('/juri/applications');
+      setApplications(response.data);
     } catch (err) {
-      console.error('Değerlendirme hatası:', err);
-      alert('Değerlendirme kaydedilemedi.');
+      console.error('Değerlendirme hatası:', err.response?.data || err.message);
+      setError(err.response?.data?.message || 'Değerlendirme kaydedilemedi. Lütfen tekrar deneyin.');
+      setSuccess('');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleSnackbarClose = () => {
+    setSuccess('');
+    setError('');
   };
 
   const formatDate = (isoDate) => {
@@ -86,21 +118,25 @@ const JuriPanel = () => {
             Jüri Paneli
           </Typography>
 
-          {/* Başvuru Listesi */}
           <Typography variant="h5" gutterBottom>
             Değerlendirmem Gereken Başvurular
           </Typography>
-          {basvurular.length > 0 ? (
+          {loading && !applications.length ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <CircularProgress />
+            </Box>
+          ) : applications.length > 0 ? (
             <List>
-              {basvurular.map((basvuru) => (
+              {applications.map((application) => (
                 <ListItem
-                  key={basvuru.basvuru_id}
+                  key={application.basvuru_id}
                   button
-                  onClick={() => handleSelectBasvuru(basvuru)}
+                  onClick={() => handleSelectApplication(application)}
+                  selected={selectedApplication?.basvuru_id === application.basvuru_id}
                 >
                   <ListItemText
-                    primary={`Aday: ${basvuru.aday.ad} ${basvuru.aday.soyad}`}
-                    secondary={`İlan: ${basvuru.ilan.kategori} - ${basvuru.ilan.aciklama} | Durum: ${basvuru.durum} | Başvuru Tarihi: ${formatDate(basvuru.basvuru_tarih)}`}
+                    primary={`Aday: ${application.ad} ${application.soyad}`}
+                    secondary={`İlan: ${application.kategori} - ${application.aciklama} | Durum: ${application.durum} | Başvuru Tarihi: ${formatDate(application.olusturulma_tarih)}`}
                   />
                 </ListItem>
               ))}
@@ -111,82 +147,101 @@ const JuriPanel = () => {
             </Typography>
           )}
 
-          {/* Seçili Başvuru Detayları */}
-          {selectedBasvuru && (
+          {selectedApplication && (
             <Box sx={{ mt: 4 }}>
               <Typography variant="h5" gutterBottom>
                 Başvuru Detayları
               </Typography>
               <Typography variant="body1">
-                Aday: {selectedBasvuru.aday.ad} {selectedBasvuru.aday.soyad}
+                Aday: {selectedApplication.ad} {selectedApplication.soyad}
               </Typography>
               <Typography variant="body1">
-                İlan: {selectedBasvuru.ilan.kategori} - {selectedBasvuru.ilan.aciklama}
+                İlan: {selectedApplication.kategori} - {selectedApplication.aciklama}
               </Typography>
               <Typography variant="body1">
-                Durum: {selectedBasvuru.durum}
+                Durum: {selectedApplication.durum}
               </Typography>
               <Typography variant="body1">
-                Puan: {selectedBasvuru.puan || 'Hesaplanmadı'}
+                Puan: {selectedApplication.puan !== null ? selectedApplication.puan : 'Puanlama yapılmamış'}
               </Typography>
 
-              {/* Belgeler */}
               <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                Yüklenen Belgeler
+                Belgeler
               </Typography>
-              {belgeler.length > 0 ? (
+              {loading && !documents.length ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                  <CircularProgress />
+                </Box>
+              ) : documents.length > 0 ? (
                 <List>
-                  {belgeler.map((belge) => (
-                    <ListItem key={belge.belge_id}>
+                  {documents.map((doc) => (
+                    <ListItem key={doc.belge_id}>
                       <ListItemText
-                        primary={`Tür: ${belge.tur}`}
-                        secondary={`Yükleme Tarihi: ${formatDate(belge.yukleme_tarih)} | Dosya: ${belge.dosya_yolu}`}
+                        primary={`Belge Türü: ${doc.turi}`}
+                        secondary={`Yükleme Tarihi: ${formatDate(doc.yukleme_tarih)} | Dosya Yolu: ${doc.dosya_yolu}`}
                       />
                     </ListItem>
                   ))}
                 </List>
               ) : (
                 <Typography variant="body1" color="text.secondary">
-                  Yüklenmiş belge bulunmamaktadır.
+                  Bu başvuruya ait belge bulunmamaktadır.
                 </Typography>
               )}
 
-              {/* Değerlendirme Formu */}
               <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                 Değerlendirme Yap
               </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box component="form" sx={{ mt: 1 }}>
                 <TextField
-                  label="Rapor Dosyası (URL veya Dosya Yolu)"
-                  name="rapor_dosyasi"
-                  value={degerlendirme.rapor_dosyasi}
-                  onChange={handleDegerlendirmeChange}
+                  label="Rapor (Dosya Yolu veya Açıklama)"
+                  name="rapor"
+                  value={evaluation.rapor}
+                  onChange={handleEvaluationChange}
                   fullWidth
+                  margin="normal"
+                  required
                 />
-                <FormControl fullWidth>
+                <FormControl fullWidth margin="normal">
                   <InputLabel>Sonuç</InputLabel>
                   <Select
                     name="sonuc"
-                    value={degerlendirme.sonuc}
-                    onChange={handleDegerlendirmeChange}
+                    value={evaluation.sonuc}
+                    onChange={handleEvaluationChange}
                     label="Sonuç"
                   >
-                    <MenuItem value="İnceleniyor">İnceleniyor</MenuItem>
-                    <MenuItem value="Olumlu">Olumlu</MenuItem>
-                    <MenuItem value="Olumsuz">Olumsuz</MenuItem>
+                    <MenuItem value="Kabul Edildi">Kabul Edildi</MenuItem>
+                    <MenuItem value="Reddedildi">Reddedildi</MenuItem>
                   </Select>
                 </FormControl>
                 <Button
                   variant="contained"
                   color="primary"
-                  onClick={handleDegerlendirmeSubmit}
+                  onClick={handleEvaluationSubmit}
+                  disabled={loading}
+                  sx={{ mt: 2 }}
                 >
-                  Değerlendirmeyi Kaydet
+                  {loading ? <CircularProgress size={20} color="inherit" /> : 'Değerlendirmeyi Kaydet'}
                 </Button>
               </Box>
             </Box>
           )}
         </Box>
+
+        <Snackbar
+          open={!!success || !!error}
+          autoHideDuration={6000}
+          onClose={handleSnackbarClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert
+            onClose={handleSnackbarClose}
+            severity={success ? 'success' : 'error'}
+            sx={{ width: '100%' }}
+          >
+            {success || error}
+          </Alert>
+        </Snackbar>
       </Container>
     </>
   );

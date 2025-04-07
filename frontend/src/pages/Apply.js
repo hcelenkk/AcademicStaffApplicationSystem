@@ -1,76 +1,106 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import {
   Container,
   Typography,
   Box,
+  Button,
   List,
   ListItem,
   ListItemText,
-  Button,
+  CircularProgress,
   Snackbar,
   Alert,
-  CircularProgress,
 } from '@mui/material';
 import Header from '../components/Header';
 
 const Apply = () => {
   const [announcements, setAnnouncements] = useState([]);
+  const [appliedAnnouncements, setAppliedAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState('ilanlar');
 
   useEffect(() => {
-    const fetchAnnouncements = async () => {
+    // URL yoluna göre aktif sekmeyi belirle
+    if (location.pathname === '/apply') {
+      setActiveTab('ilanlar');
+    } else if (location.pathname === '/my-applications') {
+      setActiveTab('basvurularim');
+    } else if (location.pathname === '/notifications') {
+      setActiveTab('bildirimler');
+    }
+
+    const fetchData = async () => {
       try {
-        console.log('İlanlar yükleniyor...');
-        const response = await api.get('/announcements');
-        console.log('İlanlar başarıyla yüklendi:', response.data);
-        setAnnouncements(response.data || []);
+        setLoading(true);
+        const [announcementsResponse, applicationsResponse] = await Promise.all([
+          api.get('/announcements'),
+          api.get('/applications/my-applications'),
+        ]);
+        setAnnouncements(announcementsResponse.data);
+        const appliedIds = applicationsResponse.data.map((app) => app.ilan.ilan_id);
+        setAppliedAnnouncements(appliedIds);
       } catch (err) {
-        console.error('İlanlar yüklenemedi:', err.response?.data || err.message);
-        if (err.response?.status === 204) {
-          setAnnouncements([]);
-        } else {
-          setError(err.response?.data?.message || 'İlanlar yüklenemedi. Lütfen tekrar deneyin.');
-        }
+        console.error('Veriler yüklenemedi:', err.response?.data || err.message);
+        setError('Veriler yüklenemedi. Lütfen tekrar deneyin.');
+      } finally {
+        setLoading(false);
       }
     };
-    fetchAnnouncements();
-  }, []);
+    fetchData();
+  }, [location.pathname]);
 
   const handleApply = async (ilan_id) => {
+    if (appliedAnnouncements.includes(ilan_id)) {
+      setError('Bu ilana zaten başvurdunuz!');
+      return;
+    }
+
     setLoading(true);
     try {
-      console.log('Başvuru yapılıyor, ilan_id:', ilan_id);
-      const response = await api.post('/applications', { ilan_id });
-      console.log('Başvuru yanıtı:', response.data);
-      setSuccess('Başvuru başarıyla yapıldı!');
+      await api.post('/applications', { ilan_id });
+      setAppliedAnnouncements((prev) => [...prev, ilan_id]);
+      setSuccess('Başvuru başarılı! Başvurularınızı görüntülemek için yönlendiriliyorsunuz.');
       setError('');
+      setTimeout(() => {
+        setActiveTab('basvurularim');
+        navigate('/my-applications');
+      }, 2000);
     } catch (err) {
-      console.error('Başvuru hatası:', err.response?.data || err);
-      setError(err.response?.data?.message || 'Başvuru başarısız. Lütfen tekrar deneyin.');
+      const errorMessage =
+        err.response?.data?.message ||
+        'Başvuru sırasında bir hata oluştu. Lütfen tekrar deneyin.';
+      setError(errorMessage);
       setSuccess('');
+      console.error('Başvuru hatası:', err);
     } finally {
       setLoading(false);
-      console.log('Loading durumu sıfırlandı:', loading); // Hata ayıklama için log
     }
   };
 
-  const handleSnackbarClose = () => {
-    setSuccess('');
-    setError('');
-  };
-
   const formatDate = (isoDate) => {
-    if (!isoDate) return 'Belirtilmemiş';
+    if (!isoDate) return 'Tarih belirtilmemiş';
     return new Date(isoDate).toLocaleDateString('tr-TR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
     });
+  };
+
+  const getAnnouncementStatus = (bitis_tarih) => {
+    const today = new Date();
+    const endDate = new Date(bitis_tarih);
+    return endDate >= today ? 'Açık' : 'Kapalı';
+  };
+
+  const handleSnackbarClose = () => {
+    setSuccess('');
+    setError('');
   };
 
   return (
@@ -83,45 +113,83 @@ const Apply = () => {
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
             <Button
-              variant="contained"
+              variant={activeTab === 'ilanlar' ? 'contained' : 'outlined'}
               color="primary"
-              onClick={() => navigate('/apply')}
+              onClick={() => {
+                setActiveTab('ilanlar');
+                navigate('/apply');
+              }}
+              sx={{
+                backgroundColor: activeTab === 'ilanlar' ? '#4CAF50' : 'transparent',
+                color: activeTab === 'ilanlar' ? '#fff' : '#000000',
+                '&:hover': {
+                  backgroundColor: activeTab === 'ilanlar' ? '#45a049' : 'rgba(25, 118, 210, 0.04)',
+                },
+              }}
             >
-              İlanlar
+              İLANLAR
             </Button>
             <Button
-              variant="outlined"
+              variant={activeTab === 'basvurularim' ? 'contained' : 'outlined'}
               color="primary"
-              onClick={() => navigate('/my-applications')}
+              onClick={() => {
+                setActiveTab('basvurularim');
+                navigate('/my-applications');
+              }}
+              sx={{
+                backgroundColor: activeTab === 'basvurularim' ? '#4CAF50' : 'transparent',
+                color: activeTab === 'basvurularim' ? '#fff' : '#000000',
+                '&:hover': {
+                  backgroundColor: activeTab === 'basvurularim' ? '#45a049' : 'rgba(25, 118, 210, 0.04)',
+                },
+              }}
             >
-              Başvurularım
+              BAŞVURULARIM
+            </Button>
+            <Button
+              variant={activeTab === 'bildirimler' ? 'contained' : 'outlined'}
+              color="primary"
+              onClick={() => {
+                setActiveTab('bildirimler');
+                navigate('/notifications');
+              }}
+              sx={{
+                backgroundColor: activeTab === 'bildirimler' ? '#4CAF50' : 'transparent',
+                color: activeTab === 'bildirimler' ? '#fff' : '#000000',
+                '&:hover': {
+                  backgroundColor: activeTab === 'bildirimler' ? '#45a049' : 'rgba(25, 118, 210, 0.04)',
+                },
+              }}
+            >
+              BİLDİRİMLER
             </Button>
           </Box>
-          {announcements.length > 0 ? (
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <CircularProgress />
+            </Box>
+          ) : announcements.length > 0 ? (
             <List>
-              {announcements.map((ann) => {
-                console.log('İlan durumu:', ann.durum); // Durum değerini logla
-                return (
-                  <ListItem
-                    key={ann.ilan_id}
-                    secondaryAction={
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={() => handleApply(ann.ilan_id)}
-                        disabled={loading || (ann.durum !== 'Aktif' && ann.durum !== undefined)}
-                      >
-                        {loading ? <CircularProgress size={20} color="inherit" /> : 'Başvur'}
-                      </Button>
-                    }
-                  >
-                    <ListItemText
-                      primary={`${ann.kategori} - ${ann.aciklama}`}
-                      secondary={`Tarih: ${formatDate(ann.baslangic_tarih)} - ${formatDate(ann.bitis_tarih)}`}
-                    />
-                  </ListItem>
-                );
-              })}
+              {announcements.map((ann) => (
+                <ListItem
+                  key={ann.ilan_id}
+                  secondaryAction={
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={() => handleApply(ann.ilan_id)}
+                      disabled={loading || getAnnouncementStatus(ann.bitis_tarih) !== 'Açık' || appliedAnnouncements.includes(ann.ilan_id)}
+                    >
+                      {loading ? <CircularProgress size={20} color="inherit" /> : 'Başvur'}
+                    </Button>
+                  }
+                >
+                  <ListItemText
+                    primary={`Kategori: ${ann.kategori} - ${ann.aciklama}`}
+                    secondary={`Başlangıç: ${formatDate(ann.baslangic_tarih)} - Bitiş: ${formatDate(ann.bitis_tarih)} | Durum: ${getAnnouncementStatus(ann.bitis_tarih)}`}
+                  />
+                </ListItem>
+              ))}
             </List>
           ) : (
             <Typography variant="body1" color="text.secondary">

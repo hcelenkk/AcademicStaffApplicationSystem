@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode'; // Doğru import: jwtDecode fonksiyonu
 import api from '../services/api';
 import {
   Container,
@@ -8,6 +9,7 @@ import {
   TextField,
   Button,
   Link,
+  Snackbar,
   Alert,
   CircularProgress,
 } from '@mui/material';
@@ -21,42 +23,48 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     setLoading(true);
-    setError('');
-
-    console.log('Gönderilen veriler:', { tc_kimlik: tcKimlik, sifre });
-
-    if (!tcKimlik || !sifre) {
-      setError('TC Kimlik Numarası ve şifre alanları boş olamaz.');
-      setLoading(false);
-      return;
-    }
-
     try {
       const response = await api.post('/auth/login', {
         tc_kimlik: tcKimlik,
         sifre,
       });
-      console.log('API yanıtı:', response.data);
+      const token = response.data.token;
+      localStorage.setItem('token', token);
 
-      localStorage.setItem('token', response.data.token);
-      const userRole = response.data.rol; // role yerine rol
-      console.log('Kullanıcı rolü:', userRole);
+      // Token'ı çözerek kullanıcı rolünü al
+      const decodedToken = jwtDecode(token); // jwtDecode fonksiyonunu kullanıyoruz
+      const userRole = decodedToken.rol;
 
-      if (userRole === 'Admin') {
-        navigate('/admin');
-      } else if (userRole === 'Aday') {
-        navigate('/apply');
-      } else {
-        setError('Bilinmeyen kullanıcı rolü');
+      // Role göre yönlendirme yap
+      switch (userRole) {
+        case 'Aday':
+          navigate('/apply');
+          break;
+        case 'Admin':
+          navigate('/admin');
+          break;
+        case 'Yönetici':
+          navigate('/manager-panel');
+          break;
+        case 'Jüri':
+          navigate('/juri-panel');
+          break;
+        default:
+          setError('Tanımlı olmayan bir rol. Lütfen sistem yöneticisi ile iletişime geçin.');
       }
     } catch (err) {
-      console.error('Giriş hatası:', err);
-      console.error('Hata detayları:', err.response?.data);
-      setError(err.response?.data?.message || 'Giriş başarısız. Lütfen tekrar deneyin.');
+      console.error('Giriş hatası:', err.response?.data || err.message);
+      const errorMessage = err.response?.data?.message || err.message || 'Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSnackbarClose = () => {
+    setError('');
   };
 
   return (
@@ -65,11 +73,6 @@ const Login = () => {
         <Typography variant="h4" component="h1" gutterBottom>
           Giriş Yap
         </Typography>
-        {error && (
-          <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
-            {error}
-          </Alert>
-        )}
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
           <TextField
             margin="normal"
@@ -100,20 +103,30 @@ const Login = () => {
             variant="contained"
             sx={{ mt: 3, mb: 2 }}
             disabled={loading}
-            startIcon={loading && <CircularProgress size={20} color="inherit" />}
           >
-            {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
+            {loading ? <CircularProgress size={20} color="inherit" /> : 'Giriş Yap'}
           </Button>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-            <Link component={RouterLink} to="/forgot-password" variant="body2">
-              Şifremi Unuttum
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Link href="/register" variant="body2">
+              Hesabınız yok mu? Kayıt Ol
             </Link>
-            <Link component={RouterLink} to="/register" variant="body2">
-              Kayıt Ol
+            <Link href="/forgot-password" variant="body2">
+              Şifremi Unuttum
             </Link>
           </Box>
         </Box>
       </Box>
+
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity="error" sx={{ width: '100%' }}>
+          {error}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

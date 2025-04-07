@@ -1,77 +1,93 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Apply from './pages/Apply';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AdminPanel from './pages/AdminPanel';
+import ManagerPanel from './pages/ManagerPanel';
+import JuriPanel from './pages/JuriPanel';
+import AdminApplications from './pages/AdminApplications';
+import MyApplications from './pages/MyApplications';
+import Announcements from './pages/Announcements';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-import Apply from './pages/Apply';
-import AdminPanel from './pages/AdminPanel';
-import MyApplications from './pages/MyApplications';
-import AdminApplications from './pages/AdminApplications';
-import ManagerPanel from './pages/ManagerPanel'; // Yeni eklenen sayfa
-import JuriPanel from './pages/JuriPanel'; // Yeni eklenen sayfa
-import PrivateRoute from './components/PrivateRoute';
+import Notifications from './pages/Notifications';
+import ProtectedRoute from './components/ProtectedRoute';
 
-function App() {
+const App = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        {/* Herkese açık route'lar */}
         <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/announcements" element={<Announcements />} />
+
+        {/* Korumalı route'lar */}
         <Route
           path="/apply"
           element={
-            <PrivateRoute roles={['Aday']}>
+            <ProtectedRoute allowedRoles={['Aday']}>
               <Apply />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <PrivateRoute roles={['Admin']}>
-              <AdminPanel />
-            </PrivateRoute>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/my-applications"
           element={
-            <PrivateRoute roles={['Aday']}>
+            <ProtectedRoute allowedRoles={['Aday']}>
               <MyApplications />
-            </PrivateRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute allowedRoles={['Aday']}>
+              <Notifications />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={['Admin']}>
+              <AdminPanel />
+            </ProtectedRoute>
           }
         />
         <Route
           path="/admin/applications"
           element={
-            <PrivateRoute roles={['Admin']}>
+            <ProtectedRoute allowedRoles={['Admin']}>
               <AdminApplications />
-            </PrivateRoute>
+            </ProtectedRoute>
           }
         />
         <Route
-          path="/admin/manager"
+          path="/manager-panel"
           element={
-            <PrivateRoute roles={['Yonetici']}>
+            <ProtectedRoute allowedRoles={['Yönetici']}>
               <ManagerPanel />
-            </PrivateRoute>
+            </ProtectedRoute>
           }
         />
         <Route
-          path="/juri"
+          path="/juri-panel"
           element={
-            <PrivateRoute roles={['Juri']}>
+            <ProtectedRoute allowedRoles={['Jüri']}>
               <JuriPanel />
-            </PrivateRoute>
+            </ProtectedRoute>
           }
         />
+
+        {/* Varsayılan route */}
         <Route path="/" element={<Login />} />
       </Routes>
     </Router>
   );
-}
+};
 
 export default App;

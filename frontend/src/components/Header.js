@@ -1,22 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppBar, Toolbar, Typography, Button } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
 
 const Header = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+  const [userRole, setUserRole] = useState(localStorage.getItem('rol') || '');
 
   useEffect(() => {
-    // Token değişimini izlemek için bir event listener ekle
     const handleStorageChange = () => {
       const token = localStorage.getItem('token');
+      const rol = localStorage.getItem('rol');
       setIsAuthenticated(!!token);
+      setUserRole(rol || '');
     };
 
-    // Storage event'ini dinle (farklı sekmelerde token değişimini algılar)
     window.addEventListener('storage', handleStorageChange);
-
-    // İlk render'da token kontrolü
     handleStorageChange();
 
     return () => {
@@ -25,24 +24,66 @@ const Header = () => {
   }, []);
 
   const handleLogout = () => {
-    // Token'ı temizle
     localStorage.removeItem('token');
+    localStorage.removeItem('rol');
     setIsAuthenticated(false);
-    // Login sayfasına yönlendir
+    setUserRole('');
     navigate('/login');
   };
 
-  // Eğer kullanıcı oturum açmamışsa, Header'ı gösterme
   if (!isAuthenticated) {
     return null;
   }
 
+  const renderNavigationButtons = () => {
+    switch (userRole) {
+      case 'Aday':
+        return (
+          <>
+            <Button color="inherit" onClick={() => navigate('/apply')}>
+              İlanlar
+            </Button>
+            <Button color="inherit" onClick={() => navigate('/my-applications')}>
+              Başvurularım
+            </Button>
+          </>
+        );
+      case 'Admin':
+        return (
+          <>
+            <Button color="inherit" onClick={() => navigate('/admin')}>
+              İlan Yönetimi
+            </Button>
+            <Button color="inherit" onClick={() => navigate('/admin/applications')}>
+              Başvuru Yönetimi
+            </Button>
+          </>
+        );
+      case 'Yönetici':
+        return (
+          <Button color="inherit" onClick={() => navigate('/manager')}>
+            Yönetici Paneli
+          </Button>
+        );
+      case 'Jüri':
+        return (
+          <Button color="inherit" onClick={() => navigate('/juri')}>
+            Jüri Paneli
+          </Button>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <AppBar position="static">
       <Toolbar>
+        <Box component="img" src="/Kouyenilogo.png" alt="Logo" sx={{ height: 60, mr: 2 }} />
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           Akademik Personel Başvuru Sistemi
         </Typography>
+        {renderNavigationButtons()}
         <Button color="inherit" onClick={handleLogout}>
           Çıkış Yap
         </Button>
