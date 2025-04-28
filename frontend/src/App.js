@@ -1,93 +1,62 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Apply from './pages/Apply';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import AdminPanel from './pages/AdminPanel';
-import ManagerPanel from './pages/ManagerPanel';
-import JuriPanel from './pages/JuriPanel';
-import AdminApplications from './pages/AdminApplications';
+import Apply from './pages/Apply';
 import MyApplications from './pages/MyApplications';
-import Announcements from './pages/Announcements';
+import Notifications from './pages/Notifications';
+import AdminPanel from './pages/AdminPanel';
+import AdminApplications from './pages/AdminApplications';
+import AddAnnouncement from './pages/AddAnnouncement';
+import CurrentAnnouncements from './pages/CurrentAnnouncements';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-import Notifications from './pages/Notifications';
-import ProtectedRoute from './components/ProtectedRoute';
+import Announcements from './pages/Announcements';
+import Application from './pages/Application';
+import JuriPanel from './pages/JuriPanel';
+import ManagerPanel from './pages/ManagerPanel';
+import AddCriterion from './pages/AddCriterion';
+import CurrentCriteria from './pages/CurrentCriteria';
+import AddJuri from './pages/AddJuri';
+import CurrentJuriMembers from './pages/CurrentJuriMembers';
+import AssignJuri from './pages/AssignJuri';
+import RoleManagement from './pages/RoleManagement';
 
-const App = () => {
+function App() {
   return (
     <Router>
       <Routes>
-        {/* Herkese açık route'lar */}
-        <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/apply" element={<Apply />} />
+        <Route path="/my-applications" element={<MyApplications />} />
+        <Route path="/notifications" element={<Notifications />} />
+        {/* Admin Paneli ve alt rotaları */}
+        <Route path="/admin" element={<AdminPanel />}>
+          <Route path="add-announcement" element={<AddAnnouncement />} />
+          <Route path="current-announcements" element={<CurrentAnnouncements />} />
+          <Route path="applications" element={<AdminApplications />} />
+          <Route path="role-management" element={<RoleManagement />} />
+        </Route>
+        {/* Manager Paneli ve alt rotaları */}
+        <Route path="/manager" element={<ManagerPanel />}>
+          <Route path="add-criterion" element={<AddCriterion />} />
+          <Route path="current-criteria" element={<CurrentCriteria />} />
+          <Route path="add-juri" element={<AddJuri />} />
+          <Route path="current-juri-members" element={<CurrentJuriMembers />} />
+          <Route path="assign-juri" element={<AssignJuri />} />
+        </Route>
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/announcements" element={<Announcements />} />
-
-        {/* Korumalı route'lar */}
-        <Route
-          path="/apply"
-          element={
-            <ProtectedRoute allowedRoles={['Aday']}>
-              <Apply />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/my-applications"
-          element={
-            <ProtectedRoute allowedRoles={['Aday']}>
-              <MyApplications />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/notifications"
-          element={
-            <ProtectedRoute allowedRoles={['Aday']}>
-              <Notifications />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute allowedRoles={['Admin']}>
-              <AdminPanel />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/applications"
-          element={
-            <ProtectedRoute allowedRoles={['Admin']}>
-              <AdminApplications />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manager-panel"
-          element={
-            <ProtectedRoute allowedRoles={['Yönetici']}>
-              <ManagerPanel />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/juri-panel"
-          element={
-            <ProtectedRoute allowedRoles={['Jüri']}>
-              <JuriPanel />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Varsayılan route */}
-        <Route path="/" element={<Login />} />
+        <Route path="/application" element={<Application />} />
+        <Route path="/juri-panel" element={<JuriPanel />} />
+        <Route path="/manager-panel" element={<ManagerPanel />} />
+        {/* Varsayılan rota (isteğe bağlı) */}
+        <Route path="*" element={<div>404 - Sayfa Bulunamadı</div>} />
       </Routes>
     </Router>
   );
-};
+}
 
 export default App;

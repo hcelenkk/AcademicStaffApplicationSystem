@@ -1,3 +1,4 @@
+// src/pages/Apply.js
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
@@ -39,15 +40,19 @@ const Apply = () => {
       try {
         setLoading(true);
         const [announcementsResponse, applicationsResponse] = await Promise.all([
-          api.get('/announcements'),
-          api.get('/applications/my-applications'),
+          api.get('/announcements').catch((err) => {
+            throw new Error(`İlanlar yüklenemedi: ${err.response?.data?.message || err.message}`);
+          }),
+          api.get('/applications/my-applications').catch((err) => {
+            throw new Error(`Başvurular yüklenemedi: ${err.response?.data?.message || err.message}`);
+          }),
         ]);
         setAnnouncements(announcementsResponse.data);
         const appliedIds = applicationsResponse.data.map((app) => app.ilan.ilan_id);
         setAppliedAnnouncements(appliedIds);
       } catch (err) {
-        console.error('Veriler yüklenemedi:', err.response?.data || err.message);
-        setError('Veriler yüklenemedi. Lütfen tekrar deneyin.');
+        console.error('Veriler yüklenemedi:', err.message);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -77,7 +82,7 @@ const Apply = () => {
         'Başvuru sırasında bir hata oluştu. Lütfen tekrar deneyin.';
       setError(errorMessage);
       setSuccess('');
-      console.error('Başvuru hatası:', err);
+      console.error('Başvuru hatası:', err.response?.data || err.message);
     } finally {
       setLoading(false);
     }

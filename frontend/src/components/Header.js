@@ -1,26 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
 
 const Header = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
-  const [userRole, setUserRole] = useState(localStorage.getItem('rol') || '');
+  const [userRole, setUserRole] = useState('');
 
   useEffect(() => {
-    const handleStorageChange = () => {
-      const token = localStorage.getItem('token');
-      const rol = localStorage.getItem('rol');
-      setIsAuthenticated(!!token);
-      setUserRole(rol || '');
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    handleStorageChange();
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        setUserRole(decoded.rol);
+        setIsAuthenticated(true);
+      } catch (err) {
+        console.error('Token decode hatası:', err.message);
+        handleLogout();
+      }
+    }
   }, []);
 
   const handleLogout = () => {
@@ -57,6 +56,9 @@ const Header = () => {
             <Button color="inherit" onClick={() => navigate('/admin/applications')}>
               Başvuru Yönetimi
             </Button>
+            <Button color="inherit" onClick={() => navigate('/admin/role-management')}>
+              Rol Yönetimi
+            </Button>
           </>
         );
       case 'Yönetici':
@@ -67,7 +69,7 @@ const Header = () => {
         );
       case 'Jüri':
         return (
-          <Button color="inherit" onClick={() => navigate('/juri')}>
+          <Button color="inherit" onClick={() => navigate('/juri-panel')}>
             Jüri Paneli
           </Button>
         );

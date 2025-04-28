@@ -1,25 +1,20 @@
+// middleware/auth.js
 const jwt = require('jsonwebtoken');
 
 const authMiddleware = (req, res, next) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
+  const token = req.headers.authorization?.split(' ')[1]; // Bearer <token>
 
   if (!token) {
-    console.warn('Yetkilendirme başarısız: Token bulunamadı');
-    return res.status(401).json({ message: 'Yetkilendirme başarısız: Token bulunamadı' });
+    return res.status(401).json({ message: 'Yetkisiz erişim: Token bulunamadı.' });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
-    if (!decoded.tc_kimlik || !decoded.rol) {
-      console.warn('Yetkilendirme başarısız: Token içeriği eksik', { decoded });
-      return res.status(401).json({ message: 'Yetkilendirme başarısız: Geçersiz token içeriği' });
-    }
-    req.user = decoded; // decoded: { tc_kimlik, rol }
-    console.log(`Kullanıcı doğrulandı: ${decoded.tc_kimlik}, Rol: ${decoded.rol}`);
+    req.user = decoded; // { tc_kimlik, rol }
     next();
   } catch (err) {
-    console.error('Yetkilendirme hatası:', err.message);
-    return res.status(401).json({ message: 'Yetkilendirme başarısız: Geçersiz token' });
+    console.error('Token doğrulama hatası:', err.message);
+    return res.status(403).json({ message: 'Geçersiz token.' });
   }
 };
 

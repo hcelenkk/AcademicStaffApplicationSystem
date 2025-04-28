@@ -1,5 +1,6 @@
+// src/pages/MyApplications.js
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom'; // useLocation ve useNavigate ekliyoruz
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import {
   Container,
@@ -9,16 +10,20 @@ import {
   ListItem,
   ListItemText,
   CircularProgress,
-  Button, // Button bileşenini ekliyoruz
+  Button,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import Header from '../components/Header';
 
 const MyApplications = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('basvurularim'); // Aktif sekmeyi tutmak için state
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [activeTab, setActiveTab] = useState('basvurularim');
   const navigate = useNavigate();
-  const location = useLocation(); // Mevcut URL yolunu almak için
+  const location = useLocation();
 
   useEffect(() => {
     // URL yoluna göre aktif sekmeyi belirle
@@ -35,14 +40,17 @@ const MyApplications = () => {
         setLoading(true);
         const response = await api.get('/applications/my-applications');
         setApplications(response.data);
+        setError('');
       } catch (err) {
         console.error('Başvurular yüklenemedi:', err.response?.data || err.message);
+        setError(err.response?.data?.message || 'Başvurular yüklenemedi. Lütfen tekrar deneyin.');
+        setSuccess('');
       } finally {
         setLoading(false);
       }
     };
     fetchApplications();
-  }, [location.pathname]); // URL değiştiğinde useEffect tekrar çalışır
+  }, [location.pathname]);
 
   const formatDateTime = (isoDate) => {
     if (!isoDate) return 'Tarih belirtilmemiş';
@@ -53,6 +61,11 @@ const MyApplications = () => {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const handleSnackbarClose = () => {
+    setSuccess('');
+    setError('');
   };
 
   return (
@@ -137,6 +150,21 @@ const MyApplications = () => {
             </Typography>
           )}
         </Box>
+
+        <Snackbar
+          open={!!success || !!error}
+          autoHideDuration={6000}
+          onClose={handleSnackbarClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert
+            onClose={handleSnackbarClose}
+            severity={success ? 'success' : 'error'}
+            sx={{ width: '100%' }}
+          >
+            {success || error}
+          </Alert>
+        </Snackbar>
       </Container>
     </>
   );

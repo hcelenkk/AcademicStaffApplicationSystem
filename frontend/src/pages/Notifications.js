@@ -1,3 +1,4 @@
+// src/pages/Notifications.js
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
@@ -12,6 +13,7 @@ import {
   Snackbar,
   Alert,
   Button,
+  Chip,
 } from '@mui/material';
 import Header from '../components/Header';
 
@@ -19,6 +21,7 @@ const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('bildirimler');
@@ -59,7 +62,25 @@ const Notifications = () => {
     });
   };
 
+  const handleMarkAsRead = async (bildirim_id) => {
+    try {
+      const response = await api.put(`/notifications/${bildirim_id}/read`);
+      setNotifications(
+        notifications.map((notif) =>
+          notif.bildirim_id === bildirim_id ? { ...notif, okundu: response.data.okundu } : notif
+        )
+      );
+      setSuccess('Bildirim okundu olarak işaretlendi!');
+      setError('');
+    } catch (err) {
+      console.error('Bildirim okundu işaretleme hatası:', err.response?.data || err.message);
+      setError(err.response?.data?.message || 'Bildirim okundu olarak işaretlenemedi.');
+      setSuccess('');
+    }
+  };
+
   const handleSnackbarClose = () => {
+    setSuccess('');
     setError('');
   };
 
@@ -131,9 +152,31 @@ const Notifications = () => {
           ) : notifications.length > 0 ? (
             <List>
               {notifications.map((notif) => (
-                <ListItem key={notif.bildirim_id}>
+                <ListItem
+                  key={notif.bildirim_id}
+                  secondaryAction={
+                    !notif.okundu && (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => handleMarkAsRead(notif.bildirim_id)}
+                      >
+                        Okundu
+                      </Button>
+                    )
+                  }
+                >
                   <ListItemText
-                    primary={notif.mesaj}
+                    primary={
+                      <>
+                        {notif.tur}: {notif.mesaj}{' '}
+                        {notif.okundu ? (
+                          <Chip label="Okundu" color="success" size="small" />
+                        ) : (
+                          <Chip label="Okunmamış" color="primary" size="small" />
+                        )}
+                      </>
+                    }
                     secondary={`Tarih: ${formatDate(notif.tarih)}`}
                   />
                 </ListItem>
@@ -147,13 +190,17 @@ const Notifications = () => {
         </Box>
 
         <Snackbar
-          open={!!error}
+          open={!!success || !!error}
           autoHideDuration={6000}
           onClose={handleSnackbarClose}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          <Alert onClose={handleSnackbarClose} severity="error" sx={{ width: '100%' }}>
-            {error}
+          <Alert
+            onClose={handleSnackbarClose}
+            severity={success ? 'success' : 'error'}
+            sx={{ width: '100%' }}
+          >
+            {success || error}
           </Alert>
         </Snackbar>
       </Container>

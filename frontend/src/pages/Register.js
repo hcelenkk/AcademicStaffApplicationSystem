@@ -12,6 +12,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
+import { WidthNormal } from '@mui/icons-material';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -68,11 +69,11 @@ const Register = () => {
 
   return (
     <Container maxWidth="xs">
-      <Box sx={{ mt: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <Typography variant="h4" component="h1" gutterBottom>
           Kayıt Ol
         </Typography>
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 0 }}>
           <TextField
             margin="normal"
             required
@@ -145,9 +146,17 @@ const Register = () => {
           >
             {loading ? <CircularProgress size={20} color="inherit" /> : 'Kayıt Ol'}
           </Button>
-          <Link href="/login" variant="body2">
-            Zaten hesabınız var mı? Giriş Yap
-          </Link>
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            width: '100%',
+            mb: 2,
+          }}>
+            <Link href="/login" variant="body2">
+              Zaten hesabınız var mı? Giriş Yap
+            </Link>
+          </Box>
+
         </Box>
       </Box>
 

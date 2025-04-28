@@ -7,6 +7,7 @@ import {
   TextField,
   Button,
   Alert,
+  Link,
   Snackbar,
 } from '@mui/material';
 import Header from '../components/Header';
@@ -90,6 +91,9 @@ const ForgotPassword = () => {
               Şifre Sıfırlama Bağlantısı Gönder
             </Button>
           </Box>
+          <Link href="/login" variant="body2">
+              Giriş Ekranına Dön
+            </Link>
         </Box>
 
         <Snackbar

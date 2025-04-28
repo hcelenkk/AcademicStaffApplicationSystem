@@ -30,7 +30,6 @@ export const AuthProvider = ({ children }) => {
 
     initializeAuth();
 
-    // Token değişimlerini dinlemek için bir event listener ekleyebiliriz
     const handleStorageChange = () => {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -44,7 +43,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = (userData, token) => {
     localStorage.setItem('token', token);
-    localStorage.setItem('rol', userData.rol); // Backend'den gelen rol bilgisini saklıyoruz
+    localStorage.setItem('rol', userData.rol);
     setUser(userData);
   };
 
