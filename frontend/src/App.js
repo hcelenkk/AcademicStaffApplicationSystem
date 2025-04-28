@@ -53,7 +53,7 @@ function App() {
         <Route path="/juri-panel" element={<JuriPanel />} />
         <Route path="/manager-panel" element={<ManagerPanel />} />
         {/* Varsayılan rota (isteğe bağlı) */}
-        <Route path="*" element={<div>404 - Sayfa Bulunamadı</div>} />
+        <Route path="/" element={<Login />} />
       </Routes>
     </Router>
   );
