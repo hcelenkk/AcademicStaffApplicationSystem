@@ -1,4 +1,3 @@
-// src/pages/Apply.js
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
@@ -15,6 +14,7 @@ import {
   Alert,
 } from '@mui/material';
 import Header from '../components/Header';
+import generatePDF from '../utils/generatePDF';
 
 const Apply = () => {
   const [announcements, setAnnouncements] = useState([]);
@@ -22,6 +22,7 @@ const Apply = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [appliedData, setAppliedData] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('ilanlar');
@@ -68,9 +69,16 @@ const Apply = () => {
 
     setLoading(true);
     try {
-      await api.post('/applications', { ilan_id });
+      const response = await api.post('/applications', { ilan_id });
       setAppliedAnnouncements((prev) => [...prev, ilan_id]);
-      setSuccess('Başvuru başarılı! Başvurularınızı görüntülemek için yönlendiriliyorsunuz.');
+      const appliedAnn = announcements.find((ann) => ann.ilan_id === ilan_id);
+      const applicationData = {
+        basvuru_tarihi: new Date().toISOString(),
+        durum: response.data.durum || 'Beklemede',
+      };
+      setAppliedData({ application: applicationData, announcement: appliedAnn });
+      await generatePDF(applicationData, appliedAnn);
+      setSuccess('Başvuru başarılı! PDF otomatik olarak indirildi.');
       setError('');
       setTimeout(() => {
         setActiveTab('basvurularim');
@@ -106,6 +114,7 @@ const Apply = () => {
   const handleSnackbarClose = () => {
     setSuccess('');
     setError('');
+    setAppliedData(null);
   };
 
   return (

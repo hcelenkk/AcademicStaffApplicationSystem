@@ -40,24 +40,16 @@ const Header = () => {
         return (
           <>
             <Button color="inherit" onClick={() => navigate('/apply')}>
-              İlanlar
+              Aday Paneli
             </Button>
-            <Button color="inherit" onClick={() => navigate('/my-applications')}>
-              Başvurularım
-            </Button>
+
           </>
         );
       case 'Admin':
         return (
           <>
-            <Button color="inherit" onClick={() => navigate('/admin')}>
-              İlan Yönetimi
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/admin/applications')}>
-              Başvuru Yönetimi
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/admin/role-management')}>
-              Rol Yönetimi
+            <Button color="inherit" onClick={() => navigate('/admin/add-announcement')}>
+              Admin Paneli
             </Button>
           </>
         );
